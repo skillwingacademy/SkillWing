@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.PROD ? 'https://skill-wing.onrender.com/api' : '/api',
+  baseURL: import.meta.env.PROD ? 'https://skillwing.onrender.com/api' : '/api',
   headers: {
     'Content-Type': 'application/json',
   },
