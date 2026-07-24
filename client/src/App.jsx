@@ -24,6 +24,7 @@ import PayoutDashboard from './pages/PayoutDashboard'
 import PayoutDeductionReports from './pages/PayoutDeductionReports'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import ChatPage from './pages/ChatPage'
 import { usePushNotifications } from './hooks/usePushNotifications'
 import api from './api/axios'
 
@@ -126,12 +127,13 @@ export default function App() {
           <Route path="/admin/payouts/details" element={<PayoutDeductionReports />} />
         </Route>
 
-        {/* Profile routes (all authenticated users) */}
+        {/* Profile + Chat routes (all authenticated users) */}
         <Route element={<ProtectedRoute allowedRoles={['student', 'teacher', 'admin']} />}>
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/edit" element={<ProfileEditPage />} />
           <Route path="/profile/:id" element={<ProfilePage />} />
           <Route path="/classrooms/:classroomId/sessions/:sessionId" element={<SessionDetailPage />} />
+          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* Catch-all */}

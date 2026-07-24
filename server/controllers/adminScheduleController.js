@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Classroom = require('../models/Classroom');
 const Session = require('../models/Session');
 const User = require('../models/User');
+const ChatContact = require('../models/ChatContact');
 
 // @desc    Assign instructor & bulk-create sessions for a pending classroom
 // @route   POST /api/admin/classrooms/:id/schedule-batch
@@ -77,6 +78,27 @@ const scheduleBatch = async (req, res) => {
     });
 
     const sessions = await Session.insertMany(sessionDocs);
+
+    // ── Populate ChatContact adjacency table ────────────────────────────────
+    // Every student in this classroom can now message the teacher, and vice versa.
+    // Uses upsert to avoid duplicates if re-scheduling.
+    const contactOps = [];
+    for (const studentId of (classroom.enrolledStudents || [])) {
+      contactOps.push(
+        ChatContact.findOneAndUpdate(
+          { userId: instructorId, contactId: studentId },
+          { userId: instructorId, contactId: studentId, classroomId: classroom._id },
+          { upsert: true, new: true }
+        ),
+        ChatContact.findOneAndUpdate(
+          { userId: studentId, contactId: instructorId },
+          { userId: studentId, contactId: instructorId, classroomId: classroom._id },
+          { upsert: true, new: true }
+        )
+      );
+    }
+    await Promise.all(contactOps);
+    console.log(`[ChatContact] Populated contacts for classroom ${classroom._id} (${(classroom.enrolledStudents || []).length} students ↔ teacher)`);
 
     // Populate for response
     const updatedClassroom = await Classroom.findById(classroom._id)

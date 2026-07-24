@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   IndianRupee, DollarSign, Users, BookOpen, ArrowLeft,
   CheckCircle2, Clock, Calendar, BarChart3, Globe, Tag,
-  User, Check
+  User, Check, Video, Loader2
 } from 'lucide-react'
 import api from '../api/axios'
 import { useAuth } from '../hooks/useAuth'
@@ -23,6 +23,8 @@ export default function CourseDetailPage() {
   const [error, setError] = useState(null)
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [selectedTier, setSelectedTier] = useState(null)
+  const [demoRequest, setDemoRequest] = useState(null)   // null | DemoRequest doc
+  const [requestingDemo, setRequestingDemo] = useState(false)
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -38,9 +40,19 @@ export default function CourseDetailPage() {
             const classrooms = enrolledRes.data.data || []
             const activeClassroom = classrooms.find(c => (c.course?._id || c.course) === id)
             if (activeClassroom) {
-               // Redirect to dashboard with classroom open
+               setIsEnrolled(true)
+               // redirect handled above — keep for safety
                navigate(`/dashboard?classroomId=${activeClassroom._id}`)
                return
+            }
+            // Fetch demo status for unenrolled students
+            try {
+              const demoRes = await api.get('/demo/my-requests')
+              const requests = demoRes.data.data || []
+              const match = requests.find(r => (r.course?._id || r.course) === id)
+              if (match) setDemoRequest(match)
+            } catch {
+              // no demo requests yet — fine
             }
           } catch {
             // Ignore — might not be enrolled
@@ -140,6 +152,23 @@ export default function CourseDetailPage() {
     }
   }
 
+  const handleRequestDemo = async () => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+    setRequestingDemo(true)
+    try {
+      const res = await api.post('/demo/request', { courseId: id })
+      setDemoRequest(res.data.data)
+      toast.success('Demo class requested! Admin will schedule it soon.')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to request demo')
+    } finally {
+      setRequestingDemo(false)
+    }
+  }
+
   if (loading) return <LoadingSpinner text="Loading course..." />
   if (error) {
     return (
@@ -158,9 +187,9 @@ export default function CourseDetailPage() {
 
   const pricing = course.pricing?.[currency.toLowerCase()] || {}
   const tiers = [
-    { key: '1-on-1', label: '1-on-1', subtitle: 'Private sessions · 1 student', price: pricing.oneOnOne || 0 },
-    { key: 'Double', label: 'Double', subtitle: 'Semi-private · 2 students', price: pricing.double || 0 },
-    { key: 'Batch', label: 'Batch', subtitle: `Group learning · up to ${course.maxBatchCapacity || 10} students`, price: pricing.batch || 0 },
+    { key: '1-on-1', label: 'Elite 1-on-1', subtitle: 'Private sessions · 1 student', price: pricing.oneOnOne || 0 },
+    { key: 'Double', label: 'Focus Buddy', subtitle: 'Semi-private · 2 students', price: pricing.double || 0 },
+    { key: 'Batch', label: 'Explorer Group', subtitle: `Group learning · up to ${course.maxBatchCapacity || 10} students`, price: pricing.batch || 0 },
   ].filter(t => t.price > 0)
 
   const lowestPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0
@@ -231,7 +260,7 @@ export default function CourseDetailPage() {
               <div className="sticky top-24 space-y-4">
                 {/* Hero price badge */}
                 <div className="text-center mb-1">
-                  <div className="flex items-center justify-center gap-1 text-3xl font-bold text-slate-900 mb-1">
+                  {/* <div className="flex items-center justify-center gap-1 text-3xl font-bold text-slate-900 mb-1">
                     {lowestPrice > 0 ? (
                       <>
                         <span className="text-sm text-slate-500 font-normal">From</span>
@@ -241,7 +270,7 @@ export default function CourseDetailPage() {
                     ) : (
                       <span className="text-emerald-600">Free</span>
                     )}
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Tier Selection */}
@@ -286,16 +315,84 @@ export default function CourseDetailPage() {
                     Viewing as {user.role}
                   </p>
                 ) : (
-                  <Button
-                    fullWidth
-                    size="lg"
-                    loading={enrolling}
-                    onClick={handleEnroll}
-                    disabled={!selectedTier}
-                    className={!selectedTier ? 'opacity-50 cursor-not-allowed' : ''}
-                  >
-                    {!isAuthenticated ? 'Login to Enroll' : selectedTier ? `Enroll Now — ${currencySymbol}${selectedTierPrice?.toLocaleString()}` : 'Select a Plan'}
-                  </Button>
+                  <div className="space-y-3">
+                    <Button
+                      fullWidth
+                      size="lg"
+                      loading={enrolling}
+                      onClick={handleEnroll}
+                      disabled={!selectedTier}
+                      className={!selectedTier ? 'opacity-50 cursor-not-allowed' : ''}
+                    >
+                      {!isAuthenticated ? 'Login to Enroll' : selectedTier ? `Enroll Now — ${currencySymbol}${selectedTierPrice?.toLocaleString()}` : 'Select a Plan'}
+                    </Button>
+
+                    {/* ── Demo CTA ── */}
+                    {!demoRequest && (
+                      <button
+                        onClick={handleRequestDemo}
+                        disabled={requestingDemo}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-blue-300 text-blue-600 text-sm font-medium hover:bg-blue-50 transition-all disabled:opacity-50"
+                      >
+                        {requestingDemo
+                          ? <Loader2 size={15} className="animate-spin" />
+                          : <Video size={15} />}
+                        {requestingDemo ? 'Requesting…' : 'Request Free Demo Class'}
+                      </button>
+                    )}
+
+                    {demoRequest?.status === 'pending' && (
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                        <Clock size={15} className="text-amber-500 shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-amber-700">Demo Requested</p>
+                          <p className="text-xs text-amber-600">Admin will schedule your demo soon</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {demoRequest?.status === 'scheduled' && (
+                      <div className="flex flex-col gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                          <div>
+                            <p className="text-xs font-semibold text-emerald-700">Demo Scheduled!</p>
+                            <p className="text-xs text-emerald-600">
+                              {new Date(demoRequest.scheduledAt).toLocaleString('en-IN', {
+                                weekday: 'short', month: 'short', day: 'numeric',
+                                hour: '2-digit', minute: '2-digit', hour12: true,
+                              })}
+                              {demoRequest.instructor?.name && ` · ${demoRequest.instructor.name}`}
+                            </p>
+                          </div>
+                        </div>
+                        {demoRequest.meetLink && (
+                          <a
+                            href={demoRequest.meetLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg py-2 transition-colors"
+                          >
+                            <Video size={13} /> Join Demo Class
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {demoRequest?.status === 'completed' && (
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <CheckCircle2 size={15} className="text-slate-400 shrink-0" />
+                        <p className="text-xs text-slate-500">Demo completed — enroll to continue learning!</p>
+                      </div>
+                    )}
+
+                    {demoRequest?.status === 'cancelled' && (
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+                        <Clock size={15} className="text-red-400 shrink-0" />
+                        <p className="text-xs text-red-500">Demo was cancelled. Contact support for help.</p>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

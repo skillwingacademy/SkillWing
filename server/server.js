@@ -1,11 +1,14 @@
 require('dns').setServers(['8.8.8.8', '1.1.1.1']);
+const http = require('http');
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const { Server: SocketServer } = require('socket.io');
 const connectDB = require('./config/db');
+const socketHandler = require('./socket/socketHandler');
 
 // Load environment variables
 dotenv.config();
@@ -14,6 +17,20 @@ dotenv.config();
 connectDB();
 
 const app = express();
+const httpServer = http.createServer(app);
+
+// ── Socket.io ──────────────────────────────────────────────────────────────
+const io = new SocketServer(httpServer, {
+  cors: {
+    origin: process.env.CLIENT_URL,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+socketHandler(io);
+
+// Make io accessible inside route handlers via req.app.get('io')
+app.set('io', io);
 
 // Trust proxy required for express-rate-limit when hosted on Render
 app.set('trust proxy', 1);
@@ -62,6 +79,8 @@ const studentRoutes = require('./routes/studentRoutes');
 const teacherRoutes = require('./routes/teacherRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const configRoutes = require('./routes/configRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const demoRoutes = require('./routes/demoRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
@@ -74,9 +93,8 @@ app.use('/api/student', studentRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/config', configRoutes);
-
-// Legacy: local file serving for uploads (avatars now stored in Google Cloud Storage)
-// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/chat', chatRoutes);
+app.use('/api/demo', demoRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -100,7 +118,7 @@ app.use((err, req, res, next) => {
 // Start Server
 // ──────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`SkillWing server running on port ${PORT}`);
 
   // Start Zoom telemetry polling scheduler (graceful — never crashes the app)
@@ -121,4 +139,3 @@ app.listen(PORT, () => {
     console.warn('[Server] The app will continue running without class reminders.');
   }
 });
-

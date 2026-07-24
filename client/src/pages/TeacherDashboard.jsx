@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import api from '../api/axios'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -10,12 +10,14 @@ import {
   GraduationCap, Calendar, CalendarDays, BookOpen, Clock, ShieldAlert,
   Users, Plus, Edit2, CheckCircle2, ExternalLink, Video,
   LayoutDashboard, History, ArrowLeft, User, XCircle, Menu, X,
-  FileText, PlayCircle, DollarSign, Loader2
+  FileText, PlayCircle, DollarSign, Loader2, MessageSquare
 } from 'lucide-react'
 
 export default function TeacherDashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab] = useState('overview')
+  const [demoSessions, setDemoSessions] = useState([])
   const [searchParams, setSearchParams] = useSearchParams()
   const activeClassroomId = searchParams.get('classroomId')
   const setActiveClassroomId = (id) => {
@@ -96,6 +98,8 @@ export default function TeacherDashboard() {
   useEffect(() => {
     if (isPending) { setLoading(false); return }
     fetchData()
+    // Fetch demo sessions assigned to this teacher
+    api.get('/demo/my-assigned').then(r => setDemoSessions(r.data.data || [])).catch(() => {})
   }, [isPending])
 
   const fetchEarnings = async () => {
@@ -237,6 +241,8 @@ export default function TeacherDashboard() {
     { id: 'upcoming', label: 'Upcoming', icon: Calendar, badge: upcomingSessions.length },
     { id: 'history', label: 'History', icon: History, badge: completedSessions.length },
     { id: 'earnings', label: 'Earnings', icon: DollarSign },
+    { id: 'demos', label: 'Demo Sessions', icon: Video, badge: demoSessions.filter(d => d.status === 'scheduled').length || undefined },
+    { id: 'messages', label: 'Messages', icon: MessageSquare, navigate: '/chat' },
   ]
 
   return (
@@ -287,7 +293,7 @@ export default function TeacherDashboard() {
               {tabs.map((t) => (
                 <button
                   key={t.id}
-                  onClick={() => { setActiveClassroomId(null); setTab(t.id); setIsSidebarOpen(false); }}
+                  onClick={() => { if (t.navigate) { navigate(t.navigate); return; } setActiveClassroomId(null); setTab(t.id); setIsSidebarOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all mb-1 last:mb-0 ${
                     !activeClassroomId && tab === t.id
                       ? 'bg-blue-50 text-blue-700 shadow-sm'
@@ -1053,6 +1059,62 @@ function TeacherClassroomDeepDive({ id, onBack, openEditModal, openCancelModal, 
                 </Link>
               );
             })}
+          </div>
+        )}
+
+        {/* ── DEMO SESSIONS TAB ──────────────── */}
+        {tab === 'demos' && (
+          <div className="space-y-4 animate-slide-up">
+            <h2 className="text-lg font-bold text-slate-900">My Demo Sessions</h2>
+            {demoSessions.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-10 flex flex-col items-center gap-3 text-slate-400">
+                <Video size={36} className="opacity-40" />
+                <p className="font-medium">No demo sessions assigned yet</p>
+              </div>
+            ) : (
+              demoSessions.map((demo) => {
+                const isUpcoming = demo.scheduledAt && new Date(demo.scheduledAt) > new Date()
+                return (
+                  <div key={demo._id} className={`rounded-2xl border p-5 ${
+                    demo.status === 'scheduled' ? 'bg-emerald-50 border-emerald-200' :
+                    demo.status === 'completed' ? 'bg-slate-50 border-slate-200' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-start gap-4">
+                      {demo.course?.thumbnailImage && (
+                        <img src={demo.course.thumbnailImage} alt={demo.course.title}
+                          className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-slate-800 text-sm">{demo.course?.title}</h3>
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                            demo.status === 'scheduled' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                          }`}>{demo.status === 'scheduled' ? (isUpcoming ? 'Upcoming' : 'Past') : 'Completed'}</span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Student: <span className="font-medium">{demo.student?.name}</span>
+                        </p>
+                        {demo.scheduledAt && (
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {new Date(demo.scheduledAt).toLocaleString('en-IN', {
+                              weekday: 'short', month: 'short', day: 'numeric',
+                              hour: '2-digit', minute: '2-digit', hour12: true,
+                            })}
+                            {` · ${demo.durationMinutes || 45} min`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {demo.meetLink && (
+                      <a href={demo.meetLink} target="_blank" rel="noreferrer"
+                        className="mt-3 flex items-center justify-center gap-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl py-2.5 transition-colors">
+                        <Video size={15} /> Start Demo Class
+                      </a>
+                    )}
+                  </div>
+                )
+              })
+            )}
           </div>
         )}
       </div>

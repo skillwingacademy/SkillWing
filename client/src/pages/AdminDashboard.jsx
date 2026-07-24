@@ -3,7 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
   Check, X, ShieldAlert, BookOpen, MapPin, Phone, Calendar,
   PlusCircle, Pencil, LayoutGrid, Users, UserCheck, GraduationCap, Menu, ArrowLeft, Video,
-  FileText, PlayCircle, Clock, DollarSign, Plus, CalendarPlus, CheckCircle2, XCircle, CalendarDays
+  FileText, PlayCircle, Clock, DollarSign, Plus, CalendarPlus, CheckCircle2, XCircle, CalendarDays, MessageSquare
 } from 'lucide-react'
 import api from '../api/axios'
 import Button from '../components/ui/Button'
@@ -55,6 +55,21 @@ export default function AdminDashboard() {
   const [newRate, setNewRate] = useState(0)
   const [rateLoading, setRateLoading] = useState(false)
 
+  // Demo request state
+  const [demoRequests, setDemoRequests] = useState([])
+  const [demoModal, setDemoModal] = useState(false)
+  const [selectedDemo, setSelectedDemo] = useState(null)
+  const [demoInstructorId, setDemoInstructorId] = useState('')
+  const [demoDate, setDemoDate] = useState('')
+  const [demoTime, setDemoTime] = useState('')
+  const [demoMeetLink, setDemoMeetLink] = useState('')
+  const [demoDuration, setDemoDuration] = useState(45)
+  const [demoNotes, setDemoNotes] = useState('')
+  const [demoModalLoading, setDemoModalLoading] = useState(false)
+  const [demoCancelModal, setDemoCancelModal] = useState(false)
+  const [demoCancelReason, setDemoCancelReason] = useState('')
+  const [demoStatusFilter, setDemoStatusFilter] = useState('pending')
+
   const loadData = async () => {
     try {
       const [pendRes, courRes, apprRes, studRes, classRes] = await Promise.all([
@@ -69,6 +84,11 @@ export default function AdminDashboard() {
       setApprovedTeachers(apprRes.data.data || [])
       setStudents(studRes.data.data || [])
       setClassrooms(classRes.data.data || [])
+      // Fetch demo requests
+      try {
+        const demoRes = await api.get('/demo/admin/requests')
+        setDemoRequests(demoRes.data.data || [])
+      } catch {}
     } catch (err) {
       toast.error('Failed to load dashboard data')
     } finally {
@@ -205,8 +225,70 @@ export default function AdminDashboard() {
     { id: 'students', label: 'Students', icon: GraduationCap, badge: students.length },
     { id: 'approvals', label: 'Approvals', icon: Users, badge: teachers.length },
     { id: 'pending', label: 'Pending', icon: Clock, badge: pendingClassrooms.length },
+    { id: 'demos', label: 'Demo Requests', icon: Video, badge: demoRequests.filter(d => d.status === 'pending').length || undefined },
     { id: 'payroll', label: 'Payroll', icon: DollarSign },
+    { id: 'messages', label: 'Messages', icon: MessageSquare, navigate: '/chat' },
   ]
+
+  const openScheduleModal = (demo) => {
+    setSelectedDemo(demo)
+    setDemoInstructorId(demo.instructor?._id || '')
+    setDemoDate(demo.scheduledAt ? new Date(demo.scheduledAt).toISOString().split('T')[0] : '')
+    setDemoTime(demo.scheduledAt ? new Date(demo.scheduledAt).toTimeString().slice(0, 5) : '')
+    setDemoMeetLink(demo.meetLink || '')
+    setDemoDuration(demo.durationMinutes || 45)
+    setDemoNotes(demo.adminNotes || '')
+    setDemoModal(true)
+  }
+
+  const handleScheduleDemo = async () => {
+    if (!demoInstructorId || !demoDate || !demoTime || !demoMeetLink) {
+      toast.error('Please fill all required fields')
+      return
+    }
+    setDemoModalLoading(true)
+    try {
+      await api.patch(`/demo/admin/${selectedDemo._id}/schedule`, {
+        instructorId: demoInstructorId,
+        scheduledAt: new Date(`${demoDate}T${demoTime}`).toISOString(),
+        meetLink: demoMeetLink,
+        durationMinutes: demoDuration,
+        adminNotes: demoNotes,
+      })
+      toast.success('Demo scheduled and student notified!')
+      setDemoModal(false)
+      const res = await api.get('/demo/admin/requests')
+      setDemoRequests(res.data.data || [])
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to schedule demo')
+    } finally {
+      setDemoModalLoading(false)
+    }
+  }
+
+  const handleCompleteDemo = async (id) => {
+    try {
+      await api.patch(`/demo/admin/${id}/complete`)
+      toast.success('Demo marked as completed')
+      const res = await api.get('/demo/admin/requests')
+      setDemoRequests(res.data.data || [])
+    } catch {
+      toast.error('Failed to complete demo')
+    }
+  }
+
+  const handleCancelDemo = async () => {
+    try {
+      await api.patch(`/demo/admin/${selectedDemo._id}/cancel`, { reason: demoCancelReason })
+      toast.success('Demo cancelled')
+      setDemoCancelModal(false)
+      setDemoCancelReason('')
+      const res = await api.get('/demo/admin/requests')
+      setDemoRequests(res.data.data || [])
+    } catch {
+      toast.error('Failed to cancel demo')
+    }
+  }
 
   const getTeacherCourses = (teacherId) => {
     return courses.filter(c =>
@@ -264,7 +346,7 @@ export default function AdminDashboard() {
               {tabs.map((t) => (
                 <button
                   key={t.id}
-                  onClick={() => { setTab(t.id); setIsSidebarOpen(false); setActiveClassroomId(null); }}
+                  onClick={() => { if (t.navigate) { navigate(t.navigate); return; } setTab(t.id); setIsSidebarOpen(false); setActiveClassroomId(null); }}
                   className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all mb-1 last:mb-0 ${
                     tab === t.id
                       ? 'bg-blue-50 text-blue-700 shadow-sm'
@@ -785,6 +867,88 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {/* ── DEMO REQUESTS TAB ────────────── */}
+            {tab === 'demos' && (
+              <div className="space-y-4 animate-slide-up">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-lg font-bold text-slate-900 flex-1">Demo Class Requests</h2>
+                  {['pending','scheduled','completed','cancelled'].map(s => (
+                    <button key={s} onClick={() => setDemoStatusFilter(s)}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-full capitalize transition-all ${
+                        demoStatusFilter === s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}>
+                      {s} ({demoRequests.filter(d => d.status === s).length})
+                    </button>
+                  ))}
+                </div>
+
+                {demoRequests.filter(d => d.status === demoStatusFilter).length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-10 flex flex-col items-center gap-3 text-slate-400">
+                    <Video size={36} className="opacity-40" />
+                    <p className="font-medium">No {demoStatusFilter} demo requests</p>
+                  </div>
+                ) : (
+                  demoRequests.filter(d => d.status === demoStatusFilter).map(demo => (
+                    <div key={demo._id} className="bg-white rounded-2xl border border-slate-200 p-5">
+                      <div className="flex items-start gap-4">
+                        {demo.course?.thumbnailImage && (
+                          <img src={demo.course.thumbnailImage} alt={demo.course.title}
+                            className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-slate-800">{demo.course?.title}</h3>
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full capitalize ${
+                              demo.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              demo.status === 'scheduled' ? 'bg-emerald-100 text-emerald-700' :
+                              demo.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                              'bg-red-100 text-red-600'
+                            }`}>{demo.status}</span>
+                          </div>
+                          <p className="text-sm text-slate-600 mt-1">
+                            Student: <span className="font-medium">{demo.student?.name}</span>
+                            <span className="text-slate-400 ml-2 text-xs">{demo.student?.email}</span>
+                          </p>
+                          {demo.status === 'scheduled' && demo.scheduledAt && (
+                            <p className="text-xs text-emerald-700 mt-1">
+                              {new Date(demo.scheduledAt).toLocaleString('en-IN', {
+                                weekday: 'short', month: 'short', day: 'numeric',
+                                hour: '2-digit', minute: '2-digit', hour12: true,
+                              })}
+                              {demo.instructor?.name && ` · ${demo.instructor.name}`}
+                            </p>
+                          )}
+                          <p className="text-xs text-slate-400 mt-1">
+                            Requested {new Date(demo.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2 shrink-0">
+                          {(demo.status === 'pending' || demo.status === 'scheduled') && (
+                            <button onClick={() => openScheduleModal(demo)}
+                              className="text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                              <CalendarPlus size={13} /> {demo.status === 'pending' ? 'Schedule' : 'Reschedule'}
+                            </button>
+                          )}
+                          {demo.status === 'scheduled' && (
+                            <button onClick={() => handleCompleteDemo(demo._id)}
+                              className="text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                              <CheckCircle2 size={13} /> Complete
+                            </button>
+                          )}
+                          {(demo.status === 'pending' || demo.status === 'scheduled') && (
+                            <button onClick={() => { setSelectedDemo(demo); setDemoCancelModal(true) }}
+                              className="text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                              <XCircle size={13} /> Cancel
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
               </>
             )}
           </main>
@@ -809,6 +973,74 @@ export default function AdminDashboard() {
           </div>
           <Button type="submit" variant="primary" fullWidth loading={rateLoading}>Update Rate</Button>
         </form>
+      </Modal>
+
+      {/* ── Schedule Demo Modal ─────────────── */}
+      <Modal isOpen={demoModal} onClose={() => setDemoModal(false)} title="Schedule Demo Class">
+        <div className="space-y-4">
+          {selectedDemo && (
+            <div className="bg-white/10 rounded-xl p-3 space-y-1">
+              <p className="text-sm text-white/70">Course: <span className="text-white font-medium">{selectedDemo.course?.title}</span></p>
+              <p className="text-sm text-white/70">Student: <span className="text-white font-medium">{selectedDemo.student?.name}</span></p>
+            </div>
+          )}
+          <div>
+            <label className="text-sm text-white/70 block mb-1.5">Instructor <span className="text-red-400">*</span></label>
+            <select value={demoInstructorId} onChange={e => setDemoInstructorId(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 [&>option]:bg-slate-800">
+              <option value="">Choose instructor…</option>
+              {approvedTeachers.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm text-white/70 block mb-1.5">Date <span className="text-red-400">*</span></label>
+              <input type="date" value={demoDate} onChange={e => setDemoDate(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:dark]" />
+            </div>
+            <div>
+              <label className="text-sm text-white/70 block mb-1.5">Time <span className="text-red-400">*</span></label>
+              <input type="time" value={demoTime} onChange={e => setDemoTime(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:dark]" />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm text-white/70 block mb-1.5">Duration (minutes)</label>
+            <input type="number" value={demoDuration} min={15} max={180}
+              onChange={e => setDemoDuration(Number(e.target.value))}
+              className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="text-sm text-white/70 block mb-1.5">Meet Link <span className="text-red-400">*</span></label>
+            <input type="url" value={demoMeetLink} onChange={e => setDemoMeetLink(e.target.value)}
+              placeholder="https://meet.google.com/..."
+              className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="text-sm text-white/70 block mb-1.5">Notes (optional)</label>
+            <textarea value={demoNotes} onChange={e => setDemoNotes(e.target.value)} rows={2}
+              className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+          <Button variant="primary" fullWidth loading={demoModalLoading} onClick={handleScheduleDemo}>
+            Schedule &amp; Notify Student
+          </Button>
+        </div>
+      </Modal>
+
+      {/* ── Cancel Demo Modal ──────────────── */}
+      <Modal isOpen={demoCancelModal} onClose={() => setDemoCancelModal(false)} title="Cancel Demo Request">
+        <div className="space-y-4">
+          <p className="text-sm text-white/70">Are you sure you want to cancel the demo for <span className="text-white font-semibold">{selectedDemo?.student?.name}</span>?</p>
+          <div>
+            <label className="text-sm text-white/70 block mb-1.5">Reason (optional)</label>
+            <textarea value={demoCancelReason} onChange={e => setDemoCancelReason(e.target.value)} rows={2}
+              className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+          <div className="flex gap-3">
+            <Button variant="secondary" fullWidth onClick={() => setDemoCancelModal(false)}>Go Back</Button>
+            <Button variant="danger" fullWidth onClick={handleCancelDemo}>Confirm Cancel</Button>
+          </div>
+        </div>
       </Modal>
 
       {/* ── Dispatcher Modal ──────────────── */}
