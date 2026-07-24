@@ -187,10 +187,26 @@ export default function CourseDetailPage() {
 
   const pricing = course.pricing?.[currency.toLowerCase()] || {}
   const tiers = [
-    { key: '1-on-1', label: 'Elite 1-on-1', subtitle: 'Private sessions · 1 student', price: pricing.oneOnOne || 0 },
-    { key: 'Double', label: 'Focus Buddy', subtitle: 'Semi-private · 2 students', price: pricing.double || 0 },
-    { key: 'Batch', label: 'Explorer Group', subtitle: `Group learning · up to ${course.maxBatchCapacity || 10} students`, price: pricing.batch || 0 },
-  ].filter(t => t.price > 0)
+    {
+      key: '1-on-1',
+      label: 'Elite 1-on-1',
+      subtitle: 'Private sessions · 1 student',
+      price: pricing.oneOnOne || 0,
+    },
+    {
+      key: 'Double',
+      label: 'Focus Buddy',
+      badge: 'Most Popular',
+      subtitle: 'Semi-private · 2 students',
+      price: pricing.double || 0,
+    },
+    {
+      key: 'Batch',
+      label: 'Explorer Group',
+      subtitle: `Group learning · up to ${course.maxBatchCapacity || 10} students`,
+      price: pricing.batch || 0,
+    },
+  ].filter(t => t.price > 0);
 
   const lowestPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0
   const selectedTierPrice = tiers.find(t => t.key === selectedTier)?.price
@@ -287,7 +303,14 @@ export default function CourseDetailPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-bold text-slate-900">{tier.label}</p>
+                        <p className="text-sm font-bold text-slate-900">
+                          {tier.label}
+                          {tier.badge && (
+                            <span className="ml-2 text-[10px] font-medium text-blue-600 align-middle">
+                              ({tier.badge})
+                            </span>
+                          )}
+                        </p>
                           <p className="text-xs text-slate-500">{tier.subtitle}</p>
                         </div>
                         <div className="flex items-center gap-2">
