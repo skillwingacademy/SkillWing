@@ -157,17 +157,87 @@ export default function CourseDetailPage() {
       navigate('/login')
       return
     }
+    if (user?.role !== 'student') {
+      toast.error('Only students can request demo classes')
+      return
+    }
+
     setRequestingDemo(true)
     try {
-      const res = await api.post('/demo/request', { courseId: id })
-      setDemoRequest(res.data.data)
-      toast.success('Demo class requested! Admin will schedule it soon.')
+      // Step 1: Create a payment order for the demo fee
+      const res = await api.post('/demo/create-order', {
+        courseId: id,
+        selectedCurrency: currency,
+      })
+      const order = res.data.data
+
+      // ── Mock mode: skip Razorpay widget ──
+      if (order.mock) {
+        const verifyRes = await api.post('/demo/verify-payment', {
+          razorpay_order_id: order.id,
+          razorpay_payment_id: 'mock_pay_auto',
+          razorpay_signature: 'mock_sig_auto',
+          courseId: id,
+          currency: order.currency,
+          amount: order.price,
+        })
+        setDemoRequest(verifyRes.data.data)
+        toast.success('Demo class booked! Admin will schedule it soon.')
+        setRequestingDemo(false)
+        return
+      }
+
+      // ── Razorpay mode: open checkout widget ──
+      const options = {
+        key: order.key,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'SkillWing',
+        description: `Demo Class — ${order.courseTitle}`,
+        order_id: order.id,
+        handler: async function (response) {
+          try {
+            const verifyRes = await api.post('/demo/verify-payment', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              courseId: id,
+              currency: order.currency,
+              amount: order.price,
+            })
+            setDemoRequest(verifyRes.data.data)
+            toast.success('Demo class booked! Admin will schedule it soon.')
+          } catch {
+            toast.error('Payment verification failed. Please contact support.')
+          }
+        },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+        },
+        theme: { color: '#0041a8' },
+        modal: {
+          ondismiss: function () {
+            setRequestingDemo(false)
+            toast.error('Payment was cancelled')
+          },
+        },
+      }
+
+      const rzp = new window.Razorpay(options)
+      rzp.on('payment.failed', function (response) {
+        toast.error(response.error?.description || 'Payment failed. Please try again.')
+        setRequestingDemo(false)
+      })
+      rzp.open()
+      return // don't reset — modal is open
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to request demo')
+      toast.error(err.response?.data?.message || 'Failed to start checkout')
     } finally {
       setRequestingDemo(false)
     }
   }
+
 
   if (loading) return <LoadingSpinner text="Loading course..." />
   if (error) {
@@ -360,7 +430,9 @@ export default function CourseDetailPage() {
                         {requestingDemo
                           ? <Loader2 size={15} className="animate-spin" />
                           : <Video size={15} />}
-                        {requestingDemo ? 'Requesting…' : 'Request Free Demo Class'}
+                        {requestingDemo
+                          ? 'Processing payment…'
+                          : `Book a Demo Class — ${currency === 'USD' ? '$15' : '₹100'}`}
                       </button>
                     )}
 

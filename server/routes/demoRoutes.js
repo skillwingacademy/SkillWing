@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const {
-  requestDemo,
+  createDemoOrder,
+  verifyDemoPayment,
   getMyDemoRequests,
   getMyAssignedDemos,
   adminGetAllDemos,
@@ -15,10 +16,13 @@ const { authorize } = require('../middleware/rbacMiddleware');
 router.use(protect);
 
 // ── Student routes ────────────────────────────────────────────────────────────
-// POST /api/demo/request          — request a demo class
-router.post('/request', authorize('student'), requestDemo);
+// POST /api/demo/create-order      — create payment order for demo fee
+router.post('/create-order', authorize('student'), createDemoOrder);
 
-// GET  /api/demo/my-requests      — student's own demo history
+// POST /api/demo/verify-payment    — verify payment and create demo request
+router.post('/verify-payment', authorize('student'), verifyDemoPayment);
+
+// GET  /api/demo/my-requests       — student's own demo history
 router.get('/my-requests', authorize('student'), getMyDemoRequests);
 
 // ── Teacher routes ────────────────────────────────────────────────────────────

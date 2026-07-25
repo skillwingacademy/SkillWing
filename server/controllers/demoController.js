@@ -4,19 +4,29 @@ const Course = require('../models/Course');
 const User = require('../models/User');
 const ChatContact = require('../models/ChatContact');
 const { sendPushToUser } = require('./notificationController');
+const PaymentService = require('../services/payment/PaymentService');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/demo/request
-// Student requests a free demo for a course they haven't bought.
-// ─────────────────────────────────────────────────────────────────────────────
-exports.requestDemo = async (req, res) => {
+// ─────────────────────────────────────────────────────────────────────────────────
+// DEMO PRICING CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────────
+const DEMO_PRICE = { INR: 100, USD: 15 };
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// POST /api/demo/create-order
+// Creates a payment order for the demo class fee.
+// Currency defaults to INR; pass selectedCurrency=USD for foreign students.
+// ─────────────────────────────────────────────────────────────────────────────────
+exports.createDemoOrder = async (req, res) => {
   try {
-    const { courseId } = req.body;
+    const { courseId, selectedCurrency } = req.body;
     const studentId = req.user._id;
 
     if (!courseId) {
       return res.status(400).json({ success: false, message: 'courseId is required' });
     }
+
+    const currency = ['INR', 'USD'].includes(selectedCurrency) ? selectedCurrency : 'INR';
+    const price = DEMO_PRICE[currency];
 
     // 1. Course must exist
     const course = await Course.findById(courseId);
@@ -24,45 +34,113 @@ exports.requestDemo = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found' });
     }
 
-    // 2. Student must not already be enrolled (any non-cancelled classroom)
+    // 2. Student must not already be enrolled
     const existing = await Classroom.findOne({
       course: courseId,
       enrolledStudents: studentId,
       status: { $in: ['active', 'paused', 'pending_assignment'] },
     });
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'You are already enrolled in this course',
-      });
+      return res.status(400).json({ success: false, message: 'You are already enrolled in this course' });
     }
 
-    // 3. One demo per student per course
-    const alreadyRequested = await DemoRequest.findOne({
-      student: studentId,
-      course: courseId,
-    });
+    // 3. One paid demo per student per course
+    const alreadyRequested = await DemoRequest.findOne({ student: studentId, course: courseId });
     if (alreadyRequested) {
-      return res.status(400).json({
-        success: false,
-        message: 'You have already used your free demo for this course',
+      return res.status(400).json({ success: false, message: 'You have already requested a demo for this course' });
+    }
+
+    // 4. Create payment order using the existing provider (Razorpay / Mock)
+    const user = await User.findById(studentId);
+    const provider = PaymentService.getProvider();
+
+    // Build a synthetic course-like object with just the price info
+    const syntheticCourse = {
+      _id: courseId,
+      title: `Demo Class — ${course.title}`,
+      price,
+      currency,
+    };
+
+    const order = await provider.createOrder(syntheticCourse, user);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...order,
+        courseId: courseId.toString(),
+        courseTitle: course.title,
+        currency,
+        price,
+        key: PaymentService.isMock() ? 'mock_key' : process.env.RAZORPAY_KEY_ID,
+      },
+    });
+  } catch (err) {
+    console.error('createDemoOrder error:', err.message);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// POST /api/demo/verify-payment
+// Verifies payment and then creates the DemoRequest record.
+// ─────────────────────────────────────────────────────────────────────────────────
+exports.verifyDemoPayment = async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      courseId,
+      currency = 'INR',
+      amount,
+    } = req.body;
+    const studentId = req.user._id;
+
+    if (!courseId) {
+      return res.status(400).json({ success: false, message: 'courseId is required' });
+    }
+
+    // 1. Verify payment
+    const provider = PaymentService.getProvider();
+    const result = await provider.verifyPayment({
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    });
+
+    if (!result.verified) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed' });
+    }
+
+    // 2. Course must exist
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Course not found' });
+    }
+
+    // 3. Create (or return existing) DemoRequest
+    let demo = await DemoRequest.findOne({ student: studentId, course: courseId });
+    if (!demo) {
+      demo = await DemoRequest.create({
+        student: studentId,
+        course: courseId,
+        paymentId: result.paymentId,
+        orderId: result.orderId,
+        paymentAmount: amount || DEMO_PRICE[currency] || 100,
+        paymentCurrency: currency,
       });
     }
 
-    // 4. Create the request
-    const demo = await DemoRequest.create({
-      student: studentId,
-      course: courseId,
-    });
-
-    // 5. Notify all admins (graceful — never crashes)
+    // 4. Notify all admins
     try {
       const admins = await User.find({ role: 'admin' }).select('_id');
       const studentName = req.user.name || 'A student';
+      const paid = currency === 'USD' ? `$${DEMO_PRICE.USD}` : `₹${DEMO_PRICE.INR}`;
       for (const admin of admins) {
         await sendPushToUser(admin._id, {
-          title: 'New Demo Request',
-          body: `${studentName} requested a demo for "${course.title}"`,
+          title: 'New Demo Request (Paid)',
+          body: `${studentName} paid ${paid} for a demo of "${course.title}"`,
           url: '/admin/dashboard',
         });
       }
@@ -77,12 +155,9 @@ exports.requestDemo = async (req, res) => {
     res.status(201).json({ success: true, data: populated });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'You have already used your free demo for this course',
-      });
+      return res.status(400).json({ success: false, message: 'You have already requested a demo for this course' });
     }
-    console.error('requestDemo error:', err.message);
+    console.error('verifyDemoPayment error:', err.message);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

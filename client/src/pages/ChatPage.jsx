@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { MessageSquare, Eye } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { MessageSquare, Eye, ArrowLeft } from 'lucide-react'
 import api from '../api/axios'
 import { useAuth } from '../hooks/useAuth'
 import { useSocket } from '../hooks/useSocket'
@@ -14,6 +15,7 @@ import toast from 'react-hot-toast'
  * For others: two-panel contact list + conversation.
  */
 export default function ChatPage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { socket } = useSocket()
   const isAdmin = user?.role === 'admin'
@@ -176,6 +178,13 @@ export default function ChatPage() {
             `}
           >
             <div className="flex items-center gap-2 px-4 py-4 border-b border-slate-200">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-1.5 -ml-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                title="Go Back"
+              >
+                <ArrowLeft size={18} />
+              </button>
               <MessageSquare size={20} className="text-blue-600" />
               <h1 className="text-base font-bold text-slate-800">Messages</h1>
               {totalUnread > 0 && (

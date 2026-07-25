@@ -46,7 +46,9 @@ export default function ConversationPanel({ conversation, onBack }) {
   useEffect(() => {
     loadMessages()
     // Mark as read when opening
-    api.patch(`/chat/conversations/${conversationId}/read`).catch(() => {})
+    if (conversationId) {
+      api.patch(`/chat/conversations/${conversationId}/read`).catch(() => {})
+    }
   }, [conversationId, loadMessages])
 
   // ── Auto-scroll to bottom on new messages ───────────────────────────────
@@ -78,7 +80,9 @@ export default function ConversationPanel({ conversation, onBack }) {
         return [...prev, message]
       })
       // Mark as read immediately if panel is open
-      api.patch(`/chat/conversations/${conversationId}/read`).catch(() => {})
+      if (conversationId) {
+        api.patch(`/chat/conversations/${conversationId}/read`).catch(() => {})
+      }
     }
 
     const handleTyping = ({ conversationId: cId, userName }) => {

@@ -490,7 +490,9 @@ export default function StudentDashboard() {
                               </p>
                             )}
                             {demo.status === 'pending' && (
-                              <p className="text-xs text-amber-600 mt-1">Admin will schedule your demo soon.</p>
+                              <p className="text-xs text-amber-600 mt-1">
+                                Payment confirmed ({demo.paymentCurrency === 'USD' ? `$${demo.paymentAmount}` : `₹${demo.paymentAmount}`}) · Admin will schedule your demo soon.
+                              </p>
                             )}
                             {demo.status === 'cancelled' && demo.cancellationReason && (
                               <p className="text-xs text-red-500 mt-1">Reason: {demo.cancellationReason}</p>

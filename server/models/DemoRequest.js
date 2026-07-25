@@ -12,6 +12,11 @@ const demoRequestSchema = new mongoose.Schema(
       ref: 'Course',
       required: true,
     },
+    // Payment details (populated after successful payment)
+    paymentId: { type: String, default: '' },
+    orderId:   { type: String, default: '' },
+    paymentAmount:   { type: Number, default: 0 },
+    paymentCurrency: { type: String, default: 'INR' },
     status: {
       type: String,
       enum: ['pending', 'scheduled', 'completed', 'cancelled'],

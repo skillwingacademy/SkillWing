@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Search, MessageSquarePlus } from 'lucide-react'
+import {Navigate} from 'react-router-dom'
 
 const ROLE_COLORS = {
   student: 'bg-emerald-100 text-emerald-700',
@@ -35,7 +36,7 @@ export default function ContactList({
   loading,
 }) {
   const [search, setSearch] = useState('')
-
+  
   const handleSearch = (val) => {
     setSearch(val)
     if (role === 'admin') onAdminSearch?.(val)

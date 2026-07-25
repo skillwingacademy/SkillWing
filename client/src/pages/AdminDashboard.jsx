@@ -920,6 +920,11 @@ export default function AdminDashboard() {
                           )}
                           <p className="text-xs text-slate-400 mt-1">
                             Requested {new Date(demo.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                            {demo.paymentAmount > 0 && (
+                              <span className="ml-2 text-emerald-600 font-semibold">
+                                · Paid {demo.paymentCurrency === 'USD' ? `$${demo.paymentAmount}` : `₹${demo.paymentAmount}`}
+                              </span>
+                            )}
                           </p>
                         </div>
                         <div className="flex flex-col gap-2 shrink-0">
