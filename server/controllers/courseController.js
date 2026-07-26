@@ -7,6 +7,7 @@ const gcsService = require('../services/gcsService');
 // @access  Public
 const getAllCourses = async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     const courses = await Course.find({ isActive: true })
       .populate('educator', 'name')
       .populate('instructors', 'name');
@@ -29,6 +30,7 @@ const getAllCourses = async (req, res) => {
 // @access  Public
 const getCourseById = async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     const course = await Course.findById(req.params.id)
       .populate('educator', 'name email')
       .populate('instructors', 'name');
