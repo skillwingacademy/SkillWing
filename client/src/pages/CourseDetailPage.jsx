@@ -540,7 +540,7 @@ export default function CourseDetailPage() {
                 {/* Batch Types */}
                 {details.batchTypes && details.batchTypes.length > 0 && (
                   <div className="mt-5 pt-4 border-t border-slate-100">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Available Batches</p>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Available Courses</p>
                     <div className="flex flex-wrap gap-2">
                       {details.batchTypes.map((bt) => (
                         <span
