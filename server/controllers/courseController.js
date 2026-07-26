@@ -222,6 +222,10 @@ const updateCourse = async (req, res) => {
     }
     if (whatYouWillReceive !== undefined) course.whatYouWillReceive = whatYouWillReceive;
 
+    // Mongoose does not automatically detect changes to nested plain objects.
+    // markModified() tells Mongoose to include 'pricing' in the update operation.
+    course.markModified('pricing');
+
     const updatedCourse = await course.save();
 
     // Populate before returning
