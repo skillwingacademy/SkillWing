@@ -23,6 +23,7 @@ export default function CourseDetailPage() {
   const [error, setError] = useState(null)
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [selectedTier, setSelectedTier] = useState(null)
+  const [selectedDuration, setSelectedDuration] = useState(1) // 1, 3, 6, 9 months
   const [demoRequest, setDemoRequest] = useState(null)   // null | DemoRequest doc
   const [requestingDemo, setRequestingDemo] = useState(false)
 
@@ -84,7 +85,12 @@ export default function CourseDetailPage() {
     setEnrolling(true)
     try {
       // Step 1: Create order on backend
-      const res = await api.post('/payments/create-order', { courseId: id, purchasedTier: selectedTier, selectedCurrency: currency })
+      const res = await api.post('/payments/create-order', {
+        courseId: id,
+        purchasedTier: selectedTier,
+        selectedCurrency: currency,
+        durationMonths: selectedDuration,
+      })
       const order = res.data.data
 
       // ── Mock mode: skip Razorpay widget ──
@@ -255,31 +261,61 @@ export default function CourseDetailPage() {
   const currencySymbol = symbol
   const CurrencyIcon = currency === 'USD' ? DollarSign : IndianRupee
 
-  const pricing = course.pricing?.[currency.toLowerCase()] || {}
+  const durationOptions = [
+    { months: 1, label: '1 Month' },
+    { months: 3, label: '3 Months' },
+    { months: 6, label: '6 Months' },
+    { months: 9, label: '9 Months' },
+  ]
+
+  const discounts = course?.pricing?.discounts || {}
+  const getDiscountForDuration = (m) => {
+    if (m === 3) return discounts.month3 || 0
+    if (m === 6) return discounts.month6 || 0
+    if (m === 9) return discounts.month9 || 0
+    return 0
+  }
+  const currentDiscountPercent = getDiscountForDuration(selectedDuration)
+
+  const pricing = course?.pricing?.[currency.toLowerCase()] || {}
   const tiers = [
     {
       key: '1-on-1',
       label: 'Elite 1-on-1',
       subtitle: 'Private sessions · 1 student',
-      price: pricing.oneOnOne || 0,
+      monthlyPrice: pricing.oneOnOne || 0,
     },
     {
       key: 'Double',
       label: 'Focus Buddy',
       badge: 'Most Popular',
       subtitle: 'Semi-private · 2 students',
-      price: pricing.double || 0,
+      monthlyPrice: pricing.double || 0,
     },
     {
       key: 'Batch',
       label: 'Explorer Group',
-      subtitle: `Group learning · up to ${course.maxBatchCapacity || 10} students`,
-      price: pricing.batch || 0,
+      subtitle: `Group learning · up to ${course?.maxBatchCapacity || 10} students`,
+      monthlyPrice: pricing.batch || 0,
     },
-  ].filter(t => t.price > 0);
+  ]
+    .filter((t) => t.monthlyPrice > 0)
+    .map((t) => {
+      const originalPrice = t.monthlyPrice * selectedDuration
+      const discountAmount = Math.round(originalPrice * (currentDiscountPercent / 100))
+      const finalPrice = Math.max(0, originalPrice - discountAmount)
+      const savings = discountAmount
+      return {
+        ...t,
+        originalPrice,
+        finalPrice,
+        savings,
+        discountPercent: currentDiscountPercent,
+      }
+    })
 
-  const lowestPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0
-  const selectedTierPrice = tiers.find(t => t.key === selectedTier)?.price
+  const selectedPlanObj = tiers.find((t) => t.key === selectedTier)
+  const selectedTierPrice = selectedPlanObj?.finalPrice
 
   // Resolve instructor names
   const instructorNames =
@@ -344,48 +380,95 @@ export default function CourseDetailPage() {
             {/* Pricing Plans — 1 col */}
             <div className="lg:col-span-1">
               <div className="sticky top-24 space-y-4">
-                {/* Hero price badge */}
-                <div className="text-center mb-1">
-                  {/* <div className="flex items-center justify-center gap-1 text-3xl font-bold text-slate-900 mb-1">
-                    {lowestPrice > 0 ? (
-                      <>
-                        <span className="text-sm text-slate-500 font-normal">From</span>
-                        <CurrencyIcon size={24} />
-                        <span>{lowestPrice.toLocaleString()}</span>
-                      </>
-                    ) : (
-                      <span className="text-emerald-600">Free</span>
+                {/* Course Duration Selector */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Course Duration</span>
+                    {currentDiscountPercent > 0 && (
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                        Save {currentDiscountPercent}%
+                      </span>
                     )}
-                  </div> */}
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {durationOptions.map((opt) => {
+                      const disc = getDiscountForDuration(opt.months)
+                      const isSelected = selectedDuration === opt.months
+                      return (
+                        <button
+                          key={opt.months}
+                          type="button"
+                          onClick={() => setSelectedDuration(opt.months)}
+                          className={`relative py-2 px-1.5 rounded-xl text-xs font-bold transition-all text-center ${
+                            isSelected
+                              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                              : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/80'
+                          }`}
+                        >
+                          <div>{opt.label}</div>
+                          {disc > 0 && (
+                            <span
+                              className={`block text-[10px] mt-0.5 font-medium ${
+                                isSelected ? 'text-amber-300' : 'text-emerald-600'
+                              }`}
+                            >
+                              -{disc}%
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 {/* Tier Selection */}
-                <div className="space-y-2 mb-4">
+                <div className="space-y-2.5 mb-4">
                   {tiers.map((tier) => (
                     <button
                       key={tier.key}
                       onClick={() => setSelectedTier(tier.key)}
-                      className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                      className={`w-full text-left px-4 py-3.5 rounded-xl border-2 transition-all ${
                         selectedTier === tier.key
-                          ? 'border-blue-500 bg-blue-50'
+                          ? 'border-blue-500 bg-blue-50/80 shadow-sm'
                           : 'border-slate-200 bg-white hover:border-blue-200'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                        <p className="text-sm font-bold text-slate-900">
-                          {tier.label}
-                          {tier.badge && (
-                            <span className="ml-2 text-[10px] font-medium text-blue-600 align-middle">
-                              ({tier.badge})
-                            </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-sm font-bold text-slate-900">
+                              {tier.label}
+                            </p>
+                            {tier.badge && (
+                              <span className="text-[10px] font-semibold text-blue-600 bg-blue-100/70 px-2 py-0.5 rounded-full">
+                                {tier.badge}
+                              </span>
+                            )}
+                            {tier.discountPercent > 0 && (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                Save {tier.discountPercent}%
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5">{tier.subtitle}</p>
+                          {tier.savings > 0 && (
+                            <p className="text-[11px] font-bold text-emerald-600 mt-1">
+                              You Save {currencySymbol}{tier.savings.toLocaleString()}
+                            </p>
                           )}
-                        </p>
-                          <p className="text-xs text-slate-500">{tier.subtitle}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {selectedTier === tier.key && <CheckCircle2 size={16} className="text-blue-600" />}
-                          <span className="text-lg font-bold text-slate-900">{currencySymbol}{tier.price.toLocaleString()}</span>
+                        <div className="text-right shrink-0">
+                          {tier.discountPercent > 0 && (
+                            <div className="text-xs text-slate-400 line-through">
+                              {currencySymbol}{tier.originalPrice.toLocaleString()}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5 justify-end">
+                            {selectedTier === tier.key && <CheckCircle2 size={16} className="text-blue-600" />}
+                            <span className="text-lg font-bold text-slate-900">
+                              {currencySymbol}{tier.finalPrice.toLocaleString()}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </button>

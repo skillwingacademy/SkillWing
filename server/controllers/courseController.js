@@ -114,6 +114,11 @@ const createCourse = async (req, res) => {
           double: pricing.usd?.double || 0,
           batch: pricing.usd?.batch || 0,
         },
+        discounts: {
+          month3: Math.min(100, Math.max(0, Number(pricing.discounts?.month3) || 0)),
+          month6: Math.min(100, Math.max(0, Number(pricing.discounts?.month6) || 0)),
+          month9: Math.min(100, Math.max(0, Number(pricing.discounts?.month9) || 0)),
+        },
       },
       maxBatchCapacity: maxBatchCapacity || 10,
       currency: currency || 'INR',
@@ -196,6 +201,11 @@ const updateCourse = async (req, res) => {
           oneOnOne: pricing.usd?.oneOnOne ?? course.pricing?.usd?.oneOnOne ?? 0,
           double: pricing.usd?.double ?? course.pricing?.usd?.double ?? 0,
           batch: pricing.usd?.batch ?? course.pricing?.usd?.batch ?? 0,
+        },
+        discounts: {
+          month3: Math.min(100, Math.max(0, Number(pricing.discounts?.month3 ?? course.pricing?.discounts?.month3 ?? 0))),
+          month6: Math.min(100, Math.max(0, Number(pricing.discounts?.month6 ?? course.pricing?.discounts?.month6 ?? 0))),
+          month9: Math.min(100, Math.max(0, Number(pricing.discounts?.month9 ?? course.pricing?.discounts?.month9 ?? 0))),
         },
       };
       // Update legacy price

@@ -55,6 +55,8 @@ const createOrder = async (req, res) => {
       });
     }
 
+    const { courseId, purchasedTier, selectedCurrency, durationMonths } = req.body;
+
     // Determine the price based on tier and selected currency
     const validCurrency = ['INR', 'USD'].includes(selectedCurrency) ? selectedCurrency : 'INR';
     const currencyPricing = course.pricing?.[validCurrency.toLowerCase()] || {};
@@ -65,17 +67,28 @@ const createOrder = async (req, res) => {
       'Batch': currencyPricing.batch,
     };
 
-    let tierPrice = tierPriceMap[purchasedTier];
+    let monthlyPrice = tierPriceMap[purchasedTier];
 
     // Fallback to legacy price field if pricing tiers are not set
-    if (tierPrice === undefined || tierPrice === null) {
-      tierPrice = course.price || 0;
+    if (monthlyPrice === undefined || monthlyPrice === null) {
+      monthlyPrice = course.price || 0;
     }
+
+    const duration = [1, 3, 6, 9].includes(Number(durationMonths)) ? Number(durationMonths) : 1;
+    const discounts = course.pricing?.discounts || {};
+    let discountPercent = 0;
+    if (duration === 3) discountPercent = discounts.month3 || 0;
+    if (duration === 6) discountPercent = discounts.month6 || 0;
+    if (duration === 9) discountPercent = discounts.month9 || 0;
+
+    const originalTotal = monthlyPrice * duration;
+    const discountAmount = Math.round(originalTotal * (discountPercent / 100));
+    const finalPrice = Math.max(0, originalTotal - discountAmount);
 
     // Override the course price temporarily for the payment provider
     const courseForPayment = {
       ...course.toObject(),
-      price: tierPrice,
+      price: finalPrice,
       currency: validCurrency,
     };
 

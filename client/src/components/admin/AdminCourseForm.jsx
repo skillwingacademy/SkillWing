@@ -17,6 +17,9 @@ export default function AdminCourseForm({ course, onSaved, onCancel }) {
   const [usdOneOnOne, setUsdOneOnOne] = useState(course?.pricing?.usd?.oneOnOne ?? '')
   const [usdDouble, setUsdDouble] = useState(course?.pricing?.usd?.double ?? '')
   const [usdBatch, setUsdBatch] = useState(course?.pricing?.usd?.batch ?? '')
+  const [discountMonth3, setDiscountMonth3] = useState(course?.pricing?.discounts?.month3 ?? '')
+  const [discountMonth6, setDiscountMonth6] = useState(course?.pricing?.discounts?.month6 ?? '')
+  const [discountMonth9, setDiscountMonth9] = useState(course?.pricing?.discounts?.month9 ?? '')
   const [maxBatchCapacity, setMaxBatchCapacity] = useState(course?.maxBatchCapacity || 10)
   const [thumbnailImage, setThumbnailImage] = useState(course?.thumbnailImage || '')
 
@@ -137,6 +140,11 @@ export default function AdminCourseForm({ course, onSaved, onCancel }) {
       pricing: {
         inr: { oneOnOne: p1, double: p2, batch: p3 },
         usd: { oneOnOne: p4, double: p5, batch: p6 },
+        discounts: {
+          month3: Number(discountMonth3) || 0,
+          month6: Number(discountMonth6) || 0,
+          month9: Number(discountMonth9) || 0,
+        },
       },
       maxBatchCapacity: Number(maxBatchCapacity) || 10,
       thumbnailImage,
@@ -213,67 +221,118 @@ export default function AdminCourseForm({ course, onSaved, onCancel }) {
         </div>
       </section>
 
-      {/* ── Pricing Tiers ──────────────────────────────────── */}
+      {/* ── Pricing Management ──────────────────────────────────── */}
       <section>
-        <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+        <h3 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
           <DollarSign size={18} className="text-blue-600" />
-          Pricing Tiers
+          Pricing Management
         </h3>
+        <p className="text-xs text-slate-500 mb-6">
+          Set the 1-Month base price for each batch type. Multi-month package prices (3, 6, 9 months) will be calculated automatically based on global discount percentages.
+        </p>
+
+        {/* 1-Month Prices: INR & USD */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
           {/* INR Column */}
           <div className="space-y-4">
-            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-4">
-              <span>🇮🇳</span> Domestic (INR ₹)
+            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-2">
+              <span>🇮🇳</span> Domestic (INR ₹) — 1 Month Base Prices
             </h4>
-            {/* 1-on-1 */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-50 border border-blue-200 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-blue-900">1-on-1</span>
-              </div>
-              <input type="number" min="0" value={inrOneOnOne} onChange={(e) => setInrOneOnOne(e.target.value)} placeholder="e.g. 5000" className={inputClass} />
+            {/* Explorer Group (Batch) */}
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4">
+              <label className="block text-xs font-bold text-emerald-900 mb-1">Explorer Group (Batch) · 1 Month Price</label>
+              <input type="number" min="0" value={inrBatch} onChange={(e) => setInrBatch(e.target.value)} placeholder="e.g. 2000" className={inputClass} />
             </div>
-            {/* Double */}
+            {/* Focus Buddy (Double) */}
             <div className="bg-gradient-to-br from-blue-50 to-blue-50 border border-blue-200 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-blue-900">Double</span>
-              </div>
+              <label className="block text-xs font-bold text-blue-900 mb-1">Focus Buddy (Double) · 1 Month Price</label>
               <input type="number" min="0" value={inrDouble} onChange={(e) => setInrDouble(e.target.value)} placeholder="e.g. 3500" className={inputClass} />
             </div>
-            {/* Batch */}
-            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-emerald-900">Batch</span>
-              </div>
-              <input type="number" min="0" value={inrBatch} onChange={(e) => setInrBatch(e.target.value)} placeholder="e.g. 2000" className={inputClass} />
+            {/* Elite 1-on-1 */}
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl p-4">
+              <label className="block text-xs font-bold text-indigo-900 mb-1">Elite 1-on-1 · 1 Month Price</label>
+              <input type="number" min="0" value={inrOneOnOne} onChange={(e) => setInrOneOnOne(e.target.value)} placeholder="e.g. 5000" className={inputClass} />
             </div>
           </div>
 
           {/* USD Column */}
           <div className="space-y-4">
-            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-4">
-              <span>🌍</span> International (USD $)
+            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-2">
+              <span>🌍</span> International (USD $) — 1 Month Base Prices
             </h4>
-            {/* 1-on-1 */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-50 border border-blue-200 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-blue-900">1-on-1</span>
-              </div>
-              <input type="number" min="0" value={usdOneOnOne} onChange={(e) => setUsdOneOnOne(e.target.value)} placeholder="e.g. 60" className={inputClass} />
-            </div>
-            {/* Double */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-50 border border-blue-200 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-blue-900">Double</span>
-              </div>
-              <input type="number" min="0" value={usdDouble} onChange={(e) => setUsdDouble(e.target.value)} placeholder="e.g. 45" className={inputClass} />
-            </div>
-            {/* Batch */}
+            {/* Explorer Group (Batch) */}
             <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-emerald-900">Batch</span>
-              </div>
+              <label className="block text-xs font-bold text-emerald-900 mb-1">Explorer Group (Batch) · 1 Month Price</label>
               <input type="number" min="0" value={usdBatch} onChange={(e) => setUsdBatch(e.target.value)} placeholder="e.g. 25" className={inputClass} />
             </div>
+            {/* Focus Buddy (Double) */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-50 border border-blue-200 rounded-2xl p-4">
+              <label className="block text-xs font-bold text-blue-900 mb-1">Focus Buddy (Double) · 1 Month Price</label>
+              <input type="number" min="0" value={usdDouble} onChange={(e) => setUsdDouble(e.target.value)} placeholder="e.g. 45" className={inputClass} />
+            </div>
+            {/* Elite 1-on-1 */}
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl p-4">
+              <label className="block text-xs font-bold text-indigo-900 mb-1">Elite 1-on-1 · 1 Month Price</label>
+              <input type="number" min="0" value={usdOneOnOne} onChange={(e) => setUsdOneOnOne(e.target.value)} placeholder="e.g. 60" className={inputClass} />
+            </div>
+          </div>
+        </div>
+
+        {/* Global Discounts */}
+        <div className="bg-slate-100/70 border border-slate-200 rounded-2xl p-5 mb-6">
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Global Duration Discounts (%)</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">3 Months Discount (%)</label>
+              <input type="number" min="0" max="100" value={discountMonth3} onChange={(e) => setDiscountMonth3(e.target.value)} placeholder="e.g. 5" className={inputClass} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">6 Months Discount (%)</label>
+              <input type="number" min="0" max="100" value={discountMonth6} onChange={(e) => setDiscountMonth6(e.target.value)} placeholder="e.g. 10" className={inputClass} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">9 Months Discount (%)</label>
+              <input type="number" min="0" max="100" value={discountMonth9} onChange={(e) => setDiscountMonth9(e.target.value)} placeholder="e.g. 15" className={inputClass} />
+            </div>
+          </div>
+        </div>
+
+        {/* Automatic Price Calculation Preview */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-6 shadow-sm">
+          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3">Automated Price Calculation Preview</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold">
+                <tr>
+                  <th className="py-2 px-3">Plan / Currency</th>
+                  <th className="py-2 px-3">1 Month</th>
+                  <th className="py-2 px-3">3 Months (-{Number(discountMonth3) || 0}%)</th>
+                  <th className="py-2 px-3">6 Months (-{Number(discountMonth6) || 0}%)</th>
+                  <th className="py-2 px-3">9 Months (-{Number(discountMonth9) || 0}%)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {[
+                  { label: 'Explorer Group (INR)', base: Number(inrBatch) || 0, sym: '₹' },
+                  { label: 'Focus Buddy (INR)', base: Number(inrDouble) || 0, sym: '₹' },
+                  { label: 'Elite 1-on-1 (INR)', base: Number(inrOneOnOne) || 0, sym: '₹' },
+                  { label: 'Explorer Group (USD)', base: Number(usdBatch) || 0, sym: '$' },
+                  { label: 'Focus Buddy (USD)', base: Number(usdDouble) || 0, sym: '$' },
+                  { label: 'Elite 1-on-1 (USD)', base: Number(usdOneOnOne) || 0, sym: '$' },
+                ].map((row) => {
+                  const calc = (m, d) => Math.max(0, Math.round((row.base * m) * (1 - (Number(d) || 0) / 100)))
+                  return (
+                    <tr key={row.label}>
+                      <td className="py-2 px-3 font-semibold text-slate-800">{row.label}</td>
+                      <td className="py-2 px-3 text-slate-700">{row.sym}{row.base.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-slate-700">{row.sym}{calc(3, discountMonth3).toLocaleString()}</td>
+                      <td className="py-2 px-3 text-slate-700">{row.sym}{calc(6, discountMonth6).toLocaleString()}</td>
+                      <td className="py-2 px-3 text-slate-700">{row.sym}{calc(9, discountMonth9).toLocaleString()}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 

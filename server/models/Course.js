@@ -32,6 +32,11 @@ const courseSchema = new mongoose.Schema(
         double: { type: Number, default: 0 },
         batch: { type: Number, default: 0 },
       },
+      discounts: {
+        month3: { type: Number, default: 0 },
+        month6: { type: Number, default: 0 },
+        month9: { type: Number, default: 0 },
+      },
     },
     maxBatchCapacity: {
       type: Number,
