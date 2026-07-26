@@ -350,12 +350,13 @@ export default function AdminCourseForm({ course, onSaved, onCancel }) {
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 uppercase tracking-wider">Skill Level</label>
-            <select value={skillLevel} onChange={(e) => setSkillLevel(e.target.value)} className={inputClass}>
-              <option value="">Select level...</option>
-              <option value="Beginner">Beginner</option>
-              <option value="Intermediate">Intermediate</option>
-              <option value="Advanced">Advanced</option>
-            </select>
+            <input
+              type="text"
+              value={skillLevel}
+              onChange={(e) => setSkillLevel(e.target.value)}
+              placeholder="e.g. Beginner, All Levels"
+              className={inputClass}
+            />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 uppercase tracking-wider">Language</label>
