@@ -55,7 +55,7 @@ const createOrder = async (req, res) => {
       });
     }
 
-    const { courseId, purchasedTier, selectedCurrency, durationMonths } = req.body;
+    const { durationMonths } = req.body;
 
     // Determine the price based on tier and selected currency
     const validCurrency = ['INR', 'USD'].includes(selectedCurrency) ? selectedCurrency : 'INR';
