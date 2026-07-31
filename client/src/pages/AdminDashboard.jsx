@@ -585,7 +585,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="min-w-0">
                           <h3 className="text-lg font-bold text-slate-900 truncate">{cr.course?.title}</h3>
-                          <p className="text-sm text-slate-500 truncate">Teacher: {cr.teacher?.name}</p>
+                          <p className="text-sm text-slate-500 truncate">Teacher: {cr.teacher?.name || 'Unassigned'}</p>
                           <p className="text-sm text-slate-500 truncate">Started: {new Date(cr.createdAt).toLocaleDateString()}</p>
                         </div>
                       </div>

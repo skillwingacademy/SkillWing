@@ -34,7 +34,7 @@ const getPendingTeachers = async (req, res) => {
 const getAllClassrooms = async (req, res) => {
   try {
     const classrooms = await Classroom.find({})
-      .populate('enrolledStudents', 'name profile.avatarUrl')
+      .populate('enrolledStudents', 'name email profile.avatarUrl')
       .populate('teacher', 'name profile.avatarUrl profile.bio profile.qualifications profile.yearsOfExperience profile.schoolOrCollege')
       .populate('course', 'title thumbnailImage');
 
