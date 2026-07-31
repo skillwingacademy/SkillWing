@@ -36,6 +36,7 @@ const getClassroomById = async (req, res) => {
     // Security: teacher can only see their own classrooms
     if (
       req.user.role === 'teacher' &&
+      classroom.teacher &&
       classroom.teacher._id.toString() !== req.user.id
     ) {
       return res.status(403).json({ success: false, message: 'Access denied' });
@@ -44,7 +45,7 @@ const getClassroomById = async (req, res) => {
     // Security: student must be enrolled
     if (
       req.user.role === 'student' &&
-      !classroom.enrolledStudents.some(s => s._id.toString() === req.user.id)
+      !classroom.enrolledStudents.some(s => s && (s._id ? s._id.toString() : s.toString()) === req.user.id)
     ) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
@@ -175,11 +176,15 @@ const getClassroomDetails = async (req, res) => {
     // Security: Student must be enrolled
     if (
       req.user.role === 'student' &&
-      !classroom.enrolledStudents.some(s => s._id.toString() === req.user.id)
+      !classroom.enrolledStudents.some(s => s && (s._id ? s._id.toString() : s.toString()) === req.user.id)
     ) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
-    if (req.user.role === 'teacher' && classroom.teacher._id.toString() !== req.user.id) {
+    if (
+      req.user.role === 'teacher' &&
+      classroom.teacher &&
+      classroom.teacher._id.toString() !== req.user.id
+    ) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
