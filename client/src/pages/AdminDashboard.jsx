@@ -645,7 +645,7 @@ export default function AdminDashboard() {
                     <p className="text-xs text-slate-500 mt-0.5">Manage teacher levels, per-class rates, and assigned courses.</p>
                   </div>
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     onClick={() => {
                       setRateMatrixForm(rateConfig || {
                         Junior: { range1: 120, range2: 135, range3: 150, range4: 165 },
@@ -860,7 +860,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     onClick={() => {
                       setRateMatrixForm(rateConfig || {
                         Junior: { range1: 120, range2: 135, range3: 150, range4: 165 },
