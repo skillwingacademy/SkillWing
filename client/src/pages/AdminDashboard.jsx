@@ -786,9 +786,10 @@ export default function AdminDashboard() {
                     <div className="space-y-6 animate-slide-up">
                       <button
                         onClick={() => setSelectedStudentId(null)}
-                        className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 font-semibold transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm group cursor-pointer"
                       >
-                        <ArrowLeft size={16} /> Back to Enrolled Students List
+                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform text-slate-500 group-hover:text-blue-600" />
+                        <span>← Back to Students</span>
                       </button>
 
                       {/* Student Header Info Card */}
@@ -1258,7 +1259,7 @@ export default function AdminDashboard() {
                       </thead>
                       <tbody className="divide-y divide-slate-200">
                         {students.map(student => (
-                          <tr key={student._id} onClick={() => window.open(`/profile/${student._id}`, '_blank')} className="hover:bg-slate-50 transition-colors cursor-pointer">
+                          <tr key={student._id} onClick={() => navigate(`/profile/${student._id}`)} className="hover:bg-slate-50 transition-colors cursor-pointer">
                             <td className="px-6 py-4 text-sm font-medium text-slate-900">{student.name}</td>
                             <td className="px-6 py-4 text-sm text-slate-500">{student.email}</td>
                             <td className="px-6 py-4 text-sm text-slate-500">
