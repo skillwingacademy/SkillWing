@@ -1222,7 +1222,7 @@ export default function AdminDashboard() {
       {/* ── Teacher Payment Matrix Settings Modal ─────────────── */}
       <Modal isOpen={showRateMatrixModal} onClose={() => setShowRateMatrixModal(false)} title="Teacher Payment Matrix Settings">
         <form onSubmit={handleSaveRateMatrix} className="space-y-6">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs font-medium text-slate-200">
             Set the per-class payout rates (₹) for each Teacher Level across monthly session tiers. Admin can manually assign any of these rates to a teacher.
           </p>
 
