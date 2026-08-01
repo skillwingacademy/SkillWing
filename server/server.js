@@ -50,9 +50,9 @@ app.use(
 // Security headers
 app.use(helmet());
 
-// Body parser
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Body parser with expanded payload limit for large course data & image uploads
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Rate limiting
 const limiter = rateLimit({
