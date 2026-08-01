@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import api from '../api/axios'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import Button from '../components/ui/Button'
 import {
   User, Mail, Phone, MapPin, Calendar, Globe, Clock,
-  GraduationCap, BookOpen, Briefcase, Award, PenLine, FileText
+  GraduationCap, BookOpen, Briefcase, Award, PenLine, FileText, ArrowLeft
 } from 'lucide-react'
 
 export default function ProfilePage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { id } = useParams()
   const [profile, setProfile] = useState(null)
@@ -71,6 +72,15 @@ export default function ProfilePage() {
   return (
     <div className="page-enter bg-slate-50 min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 px-3.5 py-2 mb-6 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50/50 shadow-sm transition-all group cursor-pointer"
+        >
+          <ArrowLeft size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+          Back
+        </button>
 
         {/* ── Header Card ──────────────────────────── */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm mb-8">
