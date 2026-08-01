@@ -16,7 +16,27 @@ import toast from 'react-hot-toast'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState('courses')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabFromUrl = searchParams.get('tab')
+  const [tab, setTab] = useState(tabFromUrl || 'classrooms')
+
+  useEffect(() => {
+    const currentUrlTab = searchParams.get('tab')
+    if (currentUrlTab && currentUrlTab !== tab) {
+      setTab(currentUrlTab)
+    }
+  }, [searchParams])
+
+  const handleTabChange = (newTab) => {
+    setTab(newTab)
+    setSelectedStudentId(null)
+    setSearchParams((prev) => {
+      const updated = new URLSearchParams(prev)
+      updated.set('tab', newTab)
+      return updated
+    })
+  }
+
   const [teachers, setTeachers] = useState([])
   const [approvedTeachers, setApprovedTeachers] = useState([])
   const [students, setStudents] = useState([])
@@ -24,13 +44,20 @@ export default function AdminDashboard() {
   const [classrooms, setClassrooms] = useState([])
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [searchParams, setSearchParams] = useSearchParams()
   const activeClassroomId = searchParams.get('classroomId')
   const setActiveClassroomId = (id) => {
     if (id) {
-      setSearchParams({ classroomId: id })
+      setSearchParams((prev) => {
+        const updated = new URLSearchParams(prev)
+        updated.set('classroomId', id)
+        return updated
+      })
     } else {
-      setSearchParams({})
+      setSearchParams((prev) => {
+        const updated = new URLSearchParams(prev)
+        updated.delete('classroomId')
+        return updated
+      })
     }
   }
 
@@ -485,7 +512,7 @@ export default function AdminDashboard() {
               {tabs.map((t) => (
                 <button
                   key={t.id}
-                  onClick={() => { if (t.navigate) { navigate(t.navigate); return; } setTab(t.id); setIsSidebarOpen(false); setActiveClassroomId(null); }}
+                  onClick={() => { if (t.navigate) { navigate(t.navigate); return; } handleTabChange(t.id); setIsSidebarOpen(false); setActiveClassroomId(null); }}
                   className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all mb-1 last:mb-0 ${
                     tab === t.id
                       ? 'bg-blue-50 text-blue-700 shadow-sm'
