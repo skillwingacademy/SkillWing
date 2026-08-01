@@ -1787,7 +1787,7 @@ export default function AdminDashboard() {
 
               {/* 1. Teacher Level Selection */}
               <div>
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">Teacher Level</label>
+                <label className="text-xs font-semibold text-slate-100 uppercase tracking-wider block mb-1.5 opacity-100">Teacher Level</label>
                 <select
                   value={selectedTeacherLevel}
                   onChange={(e) => {
@@ -1810,7 +1810,7 @@ export default function AdminDashboard() {
 
               {/* 2. Manual Per-Class Rate Selection (Filtered by Level) */}
               <div>
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">Per-Class Rate (Manually Selected)</label>
+                <label className="text-xs font-semibold text-slate-100 uppercase tracking-wider block mb-1.5 opacity-100">Per-Class Rate (Manually Selected)</label>
                 <select
                   value={selectedPerClassRate}
                   onChange={(e) => setSelectedPerClassRate(Number(e.target.value))}
@@ -1854,7 +1854,7 @@ export default function AdminDashboard() {
       <Modal isOpen={editStudentModal} onClose={() => setEditStudentModal(false)} title="Edit Student Information">
         <form onSubmit={handleEditStudentSave} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Student Name</label>
+            <label className="text-xs font-semibold text-slate-100 uppercase tracking-wider block mb-1 opacity-100">Student Name</label>
             <input
               type="text"
               required
@@ -1864,7 +1864,7 @@ export default function AdminDashboard() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Email Address</label>
+            <label className="text-xs font-semibold text-slate-100 uppercase tracking-wider block mb-1 opacity-100">Email Address</label>
             <input
               type="email"
               required
@@ -1874,7 +1874,7 @@ export default function AdminDashboard() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Phone Number</label>
+            <label className="text-xs font-semibold text-slate-100 uppercase tracking-wider block mb-1 opacity-100">Phone Number</label>
             <input
               type="text"
               placeholder="e.g. +91 9876543210"
