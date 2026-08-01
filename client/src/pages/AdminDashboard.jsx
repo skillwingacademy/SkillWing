@@ -17,26 +17,32 @@ import toast from 'react-hot-toast'
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const tabFromUrl = searchParams.get('tab')
-  const [tab, setTab] = useState(tabFromUrl || 'classrooms')
+  const initialTab = searchParams.get('tab') || 'classrooms'
+  const [tab, setTabState] = useState(initialTab)
+
+  const setTab = (newTab) => {
+    setTabState(newTab)
+    const newParams = new URLSearchParams(searchParams)
+    newParams.set('tab', newTab)
+    newParams.delete('classroomId')
+    setSearchParams(newParams, { replace: true })
+  }
 
   useEffect(() => {
-    const currentUrlTab = searchParams.get('tab')
-    if (currentUrlTab && currentUrlTab !== tab) {
-      setTab(currentUrlTab)
+    const urlTab = searchParams.get('tab')
+    if (urlTab && urlTab !== tab) {
+      setTabState(urlTab)
     }
   }, [searchParams])
 
-  const handleTabChange = (newTab) => {
-    setTab(newTab)
-    setSelectedStudentId(null)
-    setSearchParams((prev) => {
-      const updated = new URLSearchParams(prev)
-      updated.set('tab', newTab)
-      return updated
-    })
+  const activeClassroomId = searchParams.get('classroomId')
+  const setActiveClassroomId = (id) => {
+    if (id) {
+      setSearchParams({ tab, classroomId: id })
+    } else {
+      setSearchParams({ tab })
+    }
   }
-
   const [teachers, setTeachers] = useState([])
   const [approvedTeachers, setApprovedTeachers] = useState([])
   const [students, setStudents] = useState([])
@@ -44,22 +50,6 @@ export default function AdminDashboard() {
   const [classrooms, setClassrooms] = useState([])
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const activeClassroomId = searchParams.get('classroomId')
-  const setActiveClassroomId = (id) => {
-    if (id) {
-      setSearchParams((prev) => {
-        const updated = new URLSearchParams(prev)
-        updated.set('classroomId', id)
-        return updated
-      })
-    } else {
-      setSearchParams((prev) => {
-        const updated = new URLSearchParams(prev)
-        updated.delete('classroomId')
-        return updated
-      })
-    }
-  }
 
   // Course form states
   const [showCourseForm, setShowCourseForm] = useState(false)
@@ -512,7 +502,7 @@ export default function AdminDashboard() {
               {tabs.map((t) => (
                 <button
                   key={t.id}
-                  onClick={() => { if (t.navigate) { navigate(t.navigate); return; } handleTabChange(t.id); setIsSidebarOpen(false); setActiveClassroomId(null); }}
+                  onClick={() => { if (t.navigate) { navigate(t.navigate); return; } setTab(t.id); setIsSidebarOpen(false); setActiveClassroomId(null); }}
                   className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all mb-1 last:mb-0 ${
                     tab === t.id
                       ? 'bg-blue-50 text-blue-700 shadow-sm'
