@@ -16,33 +16,7 @@ import toast from 'react-hot-toast'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = searchParams.get('tab') || 'classrooms'
-  const [tab, setTabState] = useState(initialTab)
-
-  const setTab = (newTab) => {
-    setTabState(newTab)
-    const newParams = new URLSearchParams(searchParams)
-    newParams.set('tab', newTab)
-    newParams.delete('classroomId')
-    setSearchParams(newParams, { replace: true })
-  }
-
-  useEffect(() => {
-    const urlTab = searchParams.get('tab')
-    if (urlTab && urlTab !== tab) {
-      setTabState(urlTab)
-    }
-  }, [searchParams])
-
-  const activeClassroomId = searchParams.get('classroomId')
-  const setActiveClassroomId = (id) => {
-    if (id) {
-      setSearchParams({ tab, classroomId: id })
-    } else {
-      setSearchParams({ tab })
-    }
-  }
+  const [tab, setTab] = useState('courses')
   const [teachers, setTeachers] = useState([])
   const [approvedTeachers, setApprovedTeachers] = useState([])
   const [students, setStudents] = useState([])
@@ -50,6 +24,15 @@ export default function AdminDashboard() {
   const [classrooms, setClassrooms] = useState([])
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeClassroomId = searchParams.get('classroomId')
+  const setActiveClassroomId = (id) => {
+    if (id) {
+      setSearchParams({ classroomId: id })
+    } else {
+      setSearchParams({})
+    }
+  }
 
   // Course form states
   const [showCourseForm, setShowCourseForm] = useState(false)
@@ -803,10 +786,9 @@ export default function AdminDashboard() {
                     <div className="space-y-6 animate-slide-up">
                       <button
                         onClick={() => setSelectedStudentId(null)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm group cursor-pointer"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50/50 shadow-sm transition-all group"
                       >
-                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform text-slate-500 group-hover:text-blue-600" />
-                        <span>Back to Students</span>
+                        <ArrowLeft size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" /> Back to Students
                       </button>
 
                       {/* Student Header Info Card */}
@@ -1276,7 +1258,7 @@ export default function AdminDashboard() {
                       </thead>
                       <tbody className="divide-y divide-slate-200">
                         {students.map(student => (
-                          <tr key={student._id} onClick={() => navigate(`/profile/${student._id}`)} className="hover:bg-slate-50 transition-colors cursor-pointer">
+                          <tr key={student._id} onClick={() => window.open(`/profile/${student._id}`, '_blank')} className="hover:bg-slate-50 transition-colors cursor-pointer">
                             <td className="px-6 py-4 text-sm font-medium text-slate-900">{student.name}</td>
                             <td className="px-6 py-4 text-sm text-slate-500">{student.email}</td>
                             <td className="px-6 py-4 text-sm text-slate-500">
@@ -2111,7 +2093,7 @@ function AdminClassroomDeepDive({ id, onBack }) {
   return (
     <div className="animate-slide-up">
       <button onClick={onBack} className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 font-medium mb-4 transition-colors">
-        <ArrowLeft size={16} /> Back to Dashboard
+        <ArrowLeft size={16} /> Back to Classrooms
       </button>
 
       {/* Header Info */}

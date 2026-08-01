@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import api from '../api/axios'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import Button from '../components/ui/Button'
 import {
   User, Mail, Phone, MapPin, Calendar, Globe, Clock,
-  GraduationCap, BookOpen, Briefcase, Award, PenLine, FileText, ArrowLeft
+  GraduationCap, BookOpen, Briefcase, Award, PenLine, FileText
 } from 'lucide-react'
 
 export default function ProfilePage() {
   const { user } = useAuth()
   const { id } = useParams()
-  const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -69,30 +68,9 @@ export default function ProfilePage() {
     { icon: Globe, label: 'Timezone', value: p.timezone || 'Asia/Kolkata' },
   )
 
-  const handleBackToStudents = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-    } else {
-      navigate('/admin?tab=students')
-    }
-  }
-
   return (
     <div className="page-enter bg-slate-50 min-h-screen">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-
-        {/* ── Top Back Navigation Button ───────────── */}
-        {(user?.role === 'admin' || !isOwnProfile) && (
-          <div className="mb-6 flex items-center justify-start">
-            <button
-              onClick={handleBackToStudents}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm group cursor-pointer"
-            >
-              <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform text-slate-500 group-hover:text-blue-600" />
-              <span>Back to Students</span>
-            </button>
-          </div>
-        )}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
 
         {/* ── Header Card ──────────────────────────── */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm mb-8">
