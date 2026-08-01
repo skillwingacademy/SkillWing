@@ -39,6 +39,10 @@ const userSchema = new mongoose.Schema(
       enum: ['Junior', 'Senior', 'Master'],
       default: 'Junior',
     },
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
     // Legacy root-level fields kept for backward compatibility
     phoneNumber: {
       type: String,

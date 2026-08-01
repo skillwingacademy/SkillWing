@@ -13,7 +13,10 @@ const {
   updateTeacherRate,
   getTeacherRateConfig,
   updateTeacherRateConfig,
-  updateTeacherLevelAndRate
+  updateTeacherLevelAndRate,
+  archiveStudent,
+  updateStudentInfo,
+  deleteStudent
 } = require('../controllers/adminController');
 const { scheduleBatch, getPayouts, addSingleSession } = require('../controllers/adminScheduleController');
 const { protect } = require('../middleware/authMiddleware');
@@ -39,6 +42,9 @@ router.get('/teachers/approved', getApprovedTeachers);
 
 // GET /api/admin/students
 router.get('/students', getAllStudents);
+router.put('/students/:id/archive', archiveStudent);
+router.put('/students/:id', updateStudentInfo);
+router.delete('/students/:id', deleteStudent);
 
 // GET /api/admin/classrooms
 router.get('/classrooms', getAllClassrooms);

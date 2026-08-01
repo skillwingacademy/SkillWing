@@ -35,7 +35,7 @@ const getPendingTeachers = async (req, res) => {
 const getAllClassrooms = async (req, res) => {
   try {
     const classrooms = await Classroom.find({})
-      .populate('enrolledStudents', 'name email profile.avatarUrl')
+      .populate('enrolledStudents', 'name email phoneNumber profile.avatarUrl isArchived createdAt')
       .populate('teacher', 'name profile.avatarUrl profile.bio profile.qualifications profile.yearsOfExperience profile.schoolOrCollege')
       .populate('course', 'title thumbnailImage');
 
@@ -359,6 +359,75 @@ const updateTeacherLevelAndRate = async (req, res) => {
   }
 };
 
+// @desc    Toggle archive status for a student
+// @route   PUT /api/admin/students/:id/archive
+// @access  Private/Admin
+const archiveStudent = async (req, res) => {
+  try {
+    const student = await User.findById(req.params.id);
+    if (!student || student.role !== 'student') {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+    student.isArchived = !student.isArchived;
+    await student.save();
+    res.status(200).json({
+      success: true,
+      message: student.isArchived ? 'Student archived successfully' : 'Student restored successfully',
+      data: student,
+    });
+  } catch (error) {
+    console.error('archiveStudent error:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Update student basic information
+// @route   PUT /api/admin/students/:id
+// @access  Private/Admin
+const updateStudentInfo = async (req, res) => {
+  try {
+    const { name, email, phoneNumber } = req.body;
+    const student = await User.findById(req.params.id);
+    if (!student || student.role !== 'student') {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+    if (name) student.name = name;
+    if (email) student.email = email;
+    if (phoneNumber !== undefined) student.phoneNumber = phoneNumber;
+    await student.save();
+    res.status(200).json({ success: true, message: 'Student information updated successfully', data: student });
+  } catch (error) {
+    console.error('updateStudentInfo error:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Permanently delete a student
+// @route   DELETE /api/admin/students/:id
+// @access  Private/Admin
+const deleteStudent = async (req, res) => {
+  try {
+    const student = await User.findById(req.params.id);
+    if (!student || student.role !== 'student') {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    // Remove student from all enrolled classrooms
+    await Classroom.updateMany(
+      { enrolledStudents: student._id },
+      { $pull: { enrolledStudents: student._id } }
+    );
+
+    // Delete student record
+    await User.findByIdAndDelete(student._id);
+
+    res.status(200).json({ success: true, message: 'Student permanently deleted successfully' });
+  } catch (error) {
+    console.error('deleteStudent error:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
 module.exports = {
   getPendingTeachers,
   getAllClassrooms,
@@ -373,5 +442,8 @@ module.exports = {
   getTeacherRateConfig,
   updateTeacherRateConfig,
   updateTeacherLevelAndRate,
+  archiveStudent,
+  updateStudentInfo,
+  deleteStudent,
 };
 

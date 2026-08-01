@@ -3,7 +3,8 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
   Check, X, ShieldAlert, BookOpen, MapPin, Phone, Calendar,
   PlusCircle, Pencil, LayoutGrid, Users, UserCheck, GraduationCap, Menu, ArrowLeft, Video,
-  FileText, PlayCircle, Clock, DollarSign, Plus, CalendarPlus, CheckCircle2, XCircle, CalendarDays, MessageSquare, Award
+  FileText, PlayCircle, Clock, DollarSign, Plus, CalendarPlus, CheckCircle2, XCircle, CalendarDays, MessageSquare, Award,
+  Search, Filter, Trash2, Archive, RotateCcw, MoreVertical, User, Mail, PhoneCall
 } from 'lucide-react'
 import api from '../api/axios'
 import Button from '../components/ui/Button'
@@ -146,6 +147,72 @@ export default function AdminDashboard() {
       } catch (refreshErr) {
         console.error('[Payment Matrix Save] Post-save data refresh error (non-fatal):', refreshErr)
       }
+    }
+  }
+
+  // Student-Centric Classrooms States
+  const [selectedStudentId, setSelectedStudentId] = useState(null)
+  const [studentSearchTerm, setStudentSearchTerm] = useState('')
+  const [studentCourseFilter, setStudentCourseFilter] = useState('all')
+  const [studentTeacherFilter, setStudentTeacherFilter] = useState('all')
+  const [studentStatusTab, setStudentStatusTab] = useState('active') // 'active' | 'archived'
+  const [activeMenuStudentId, setActiveMenuStudentId] = useState(null)
+
+  // Edit & Delete Student Modal States
+  const [editStudentModal, setEditStudentModal] = useState(false)
+  const [editingStudentForm, setEditingStudentForm] = useState({ id: '', name: '', email: '', phoneNumber: '' })
+  const [savingStudentEdit, setSavingStudentEdit] = useState(false)
+
+  const [deleteStudentModal, setDeleteStudentModal] = useState(false)
+  const [deletingStudent, setDeletingStudent] = useState(null)
+  const [deletingStudentLoading, setDeletingStudentLoading] = useState(false)
+
+  const handleArchiveStudent = async (studentId) => {
+    try {
+      const res = await api.put(`/admin/students/${studentId}/archive`)
+      toast.success(res.data.message || 'Student archive status updated')
+      setActiveMenuStudentId(null)
+      await loadData()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update student archive status')
+    }
+  }
+
+  const handleEditStudentSave = async (e) => {
+    e.preventDefault()
+    setSavingStudentEdit(true)
+    try {
+      const res = await api.put(`/admin/students/${editingStudentForm.id}`, {
+        name: editingStudentForm.name,
+        email: editingStudentForm.email,
+        phoneNumber: editingStudentForm.phoneNumber,
+      })
+      toast.success(res.data.message || 'Student information updated')
+      setEditStudentModal(false)
+      await loadData()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update student info')
+    } finally {
+      setSavingStudentEdit(false)
+    }
+  }
+
+  const handleDeleteStudentConfirm = async () => {
+    if (!deletingStudent) return
+    setDeletingStudentLoading(true)
+    try {
+      const res = await api.delete(`/admin/students/${deletingStudent._id || deletingStudent.id}`)
+      toast.success(res.data.message || 'Student permanently deleted')
+      setDeleteStudentModal(false)
+      setDeletingStudent(null)
+      if (selectedStudentId === (deletingStudent._id || deletingStudent.id)) {
+        setSelectedStudentId(null)
+      }
+      await loadData()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete student')
+    } finally {
+      setDeletingStudentLoading(false)
     }
   }
 
@@ -630,51 +697,452 @@ export default function AdminDashboard() {
               </>
             )}
 
-            {/* ─────── CLASSROOMS TAB ─────── */}
-            {tab === 'classrooms' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {classrooms.length === 0 ? (
-                  <div className="col-span-full bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
-                    <p className="text-slate-500">No classrooms found.</p>
-                  </div>
-                ) : (
-                  classrooms.map(cr => (
-                    <div key={cr._id} onClick={() => setActiveClassroomId(cr._id)} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative cursor-pointer">
-                      <div className="absolute top-4 right-4">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                          cr.status === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
-                        }`}>
-                          {cr.status || 'active'}
-                        </span>
+            {/* ─────── CLASSROOMS TAB (STUDENT-CENTRIC) ─────── */}
+            {tab === 'classrooms' && (() => {
+              // Aggregate classrooms by student (so each student appears ONCE)
+              const studentMap = new Map()
+
+              students.forEach((st) => {
+                studentMap.set(st._id, {
+                  _id: st._id,
+                  name: st.name || 'Unnamed Student',
+                  email: st.email || '',
+                  phoneNumber: st.phoneNumber || '',
+                  avatar: st.profile?.avatarUrl || '',
+                  isArchived: st.isArchived || false,
+                  createdAt: st.createdAt,
+                  classrooms: [],
+                })
+              })
+
+              classrooms.forEach((cr) => {
+                (cr.enrolledStudents || []).forEach((st) => {
+                  const stId = typeof st === 'object' ? st._id : st
+                  if (!studentMap.has(stId)) {
+                    if (typeof st === 'object') {
+                      studentMap.set(stId, {
+                        _id: st._id,
+                        name: st.name || 'Unnamed Student',
+                        email: st.email || '',
+                        phoneNumber: st.phoneNumber || '',
+                        avatar: st.profile?.avatarUrl || '',
+                        isArchived: st.isArchived || false,
+                        createdAt: st.createdAt,
+                        classrooms: [],
+                      })
+                    }
+                  }
+                  const entry = studentMap.get(stId)
+                  if (entry) {
+                    if (!entry.classrooms.some((c) => c.classroomId === cr._id)) {
+                      entry.classrooms.push({
+                        classroomId: cr._id,
+                        courseTitle: cr.course?.title || 'Untitled Course',
+                        courseThumbnail: cr.course?.thumbnailImage || '',
+                        teacherName: cr.teacher?.name || 'Unassigned',
+                        purchasedTier: cr.classroomType || '1-on-1',
+                        status: cr.status || 'active',
+                        progressPercentage: cr.progressPercentage || 0,
+                        completedSessions: cr.completedSessions || 0,
+                        totalSessions: cr.totalSessions || 0,
+                        remainingSessions: Math.max(0, (cr.totalSessions || 0) - (cr.completedSessions || 0)),
+                        attendanceSummary: `${cr.completedSessions || 0}/${cr.totalSessions || 0} completed`,
+                        paymentStatus: cr.amountPaid > 0 ? 'Paid' : 'Active',
+                        createdAt: cr.createdAt,
+                      })
+                    }
+                  }
+                })
+              })
+
+              const allStudentRecords = Array.from(studentMap.values())
+              const activeStudentRecords = allStudentRecords.filter((s) => !s.isArchived)
+              const archivedStudentRecords = allStudentRecords.filter((s) => s.isArchived)
+
+              const currentStudentList = (studentStatusTab === 'active' ? activeStudentRecords : archivedStudentRecords).filter((st) => {
+                const matchesSearch =
+                  !studentSearchTerm ||
+                  st.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+                  st.email.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+                  st._id.toLowerCase().includes(studentSearchTerm.toLowerCase())
+
+                const matchesCourse =
+                  studentCourseFilter === 'all' ||
+                  st.classrooms.some((c) => c.courseTitle.toLowerCase() === studentCourseFilter.toLowerCase())
+
+                const matchesTeacher =
+                  studentTeacherFilter === 'all' ||
+                  st.classrooms.some((c) => c.teacherName.toLowerCase() === studentTeacherFilter.toLowerCase())
+
+                return matchesSearch && matchesCourse && matchesTeacher
+              })
+
+              const selectedStudentData = selectedStudentId ? studentMap.get(selectedStudentId) : null
+
+              return (
+                <div className="space-y-6">
+                  {selectedStudentId && selectedStudentData ? (
+                    /* ── SCREEN 2: STUDENT DETAIL VIEW ── */
+                    <div className="space-y-6 animate-slide-up">
+                      <button
+                        onClick={() => setSelectedStudentId(null)}
+                        className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 font-semibold transition-colors"
+                      >
+                        <ArrowLeft size={16} /> Back to Enrolled Students List
+                      </button>
+
+                      {/* Student Header Info Card */}
+                      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-2xl shrink-0 overflow-hidden">
+                            {selectedStudentData.avatar ? (
+                              <img src={selectedStudentData.avatar} alt={selectedStudentData.name} className="w-full h-full object-cover" />
+                            ) : (
+                              selectedStudentData.name.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-2xl font-bold text-slate-900">{selectedStudentData.name}</h2>
+                              {selectedStudentData.isArchived && (
+                                <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 uppercase">
+                                  Archived
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 font-mono mt-0.5">ID: {selectedStudentData._id}</p>
+                            <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-slate-600">
+                              {selectedStudentData.email && (
+                                <span className="flex items-center gap-1.5">
+                                  <Mail size={13} className="text-slate-400" /> {selectedStudentData.email}
+                                </span>
+                              )}
+                              {selectedStudentData.phoneNumber && (
+                                <span className="flex items-center gap-1.5">
+                                  <PhoneCall size={13} className="text-slate-400" /> {selectedStudentData.phoneNumber}
+                                </span>
+                              )}
+                              {selectedStudentData.createdAt && (
+                                <span className="flex items-center gap-1.5">
+                                  <Calendar size={13} className="text-slate-400" /> Joined {new Date(selectedStudentData.createdAt).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Management Action Buttons */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => {
+                              setEditingStudentForm({
+                                id: selectedStudentData._id,
+                                name: selectedStudentData.name,
+                                email: selectedStudentData.email,
+                                phoneNumber: selectedStudentData.phoneNumber || '',
+                              })
+                              setEditStudentModal(true)
+                            }}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <Pencil size={13} /> Edit
+                          </button>
+                          <button
+                            onClick={() => handleArchiveStudent(selectedStudentData._id)}
+                            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm ${
+                              selectedStudentData.isArchived
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                            }`}
+                          >
+                            {selectedStudentData.isArchived ? <RotateCcw size={13} /> : <Archive size={13} />}
+                            {selectedStudentData.isArchived ? 'Restore' : 'Archive'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeletingStudent(selectedStudentData)
+                              setDeleteStudentModal(true)
+                            }}
+                            className="px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-xs font-bold text-red-700 hover:bg-red-100 transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <Trash2 size={13} /> Delete
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 mb-4 pr-16">
-                        <div className="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden shrink-0">
-                          {cr.course?.thumbnailImage ? (
-                            <img src={cr.course.thumbnailImage} className="w-full h-full object-cover" />
-                          ) : (
-                            <BookOpen size={20} />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="text-lg font-bold text-slate-900 truncate">{cr.course?.title}</h3>
-                          <p className="text-sm text-slate-500 truncate">Teacher: {cr.teacher?.name || 'Unassigned'}</p>
-                          <p className="text-sm text-slate-500 truncate">Started: {new Date(cr.createdAt).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <div className="mt-4 pt-4 border-t border-slate-100">
-                        <div className="flex justify-between text-xs text-slate-500 mb-1">
-                          <span>{cr.completedSessions}/{cr.totalSessions} sessions</span>
-                          <span className="font-semibold text-blue-600">{cr.progressPercentage}%</span>
-                        </div>
-                        <div className="w-full bg-slate-200 rounded-full h-2">
-                          <div className="bg-gradient-to-r from-blue-500 to-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: `${cr.progressPercentage}%` }} />
-                        </div>
+
+                      {/* Enrolled Courses Header */}
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900 font-[family-name:var(--font-family-heading)] mb-4">
+                          Enrolled Courses & Active Classrooms ({selectedStudentData.classrooms.length})
+                        </h3>
+
+                        {selectedStudentData.classrooms.length === 0 ? (
+                          <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
+                            This student is not currently enrolled in any classrooms.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {selectedStudentData.classrooms.map((cr) => (
+                              <div
+                                key={cr.classroomId}
+                                onClick={() => setActiveClassroomId(cr.classroomId)}
+                                className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative cursor-pointer group"
+                              >
+                                <div className="flex items-start gap-4 mb-4">
+                                  <div className="w-14 h-14 bg-blue-100 text-blue-700 rounded-xl overflow-hidden shrink-0 flex items-center justify-center font-bold">
+                                    {cr.courseThumbnail ? (
+                                      <img src={cr.courseThumbnail} alt={cr.courseTitle} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <BookOpen size={24} />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0 pr-12">
+                                    <h4 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                                      {cr.courseTitle}
+                                    </h4>
+                                    <p className="text-xs text-slate-500 mt-0.5 truncate">
+                                      Teacher: <span className="font-semibold text-slate-700">{cr.teacherName}</span>
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 uppercase">
+                                        {cr.purchasedTier}
+                                      </span>
+                                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md capitalize ${
+                                        cr.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600'
+                                      }`}>
+                                        {cr.status}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Progress & Session Stats */}
+                                <div className="border-t border-slate-100 pt-3 space-y-2 text-xs">
+                                  <div className="flex justify-between text-slate-600">
+                                    <span>Course Progress:</span>
+                                    <span className="font-bold text-blue-600">{cr.progressPercentage}%</span>
+                                  </div>
+                                  <div className="w-full bg-slate-100 rounded-full h-2">
+                                    <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${cr.progressPercentage}%` }} />
+                                  </div>
+                                  <div className="flex justify-between text-slate-500 pt-1">
+                                    <span>Completed: <strong className="text-slate-800">{cr.completedSessions}</strong></span>
+                                    <span>Remaining: <strong className="text-slate-800">{cr.remainingSessions}</strong></span>
+                                    <span>Payment: <strong className="text-emerald-600">{cr.paymentStatus}</strong></span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            )}
+                  ) : (
+                    /* ── SCREEN 1: ENROLLED STUDENTS GRID VIEW ── */
+                    <div className="space-y-6">
+                      {/* Header Controls & Filters */}
+                      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 font-[family-name:var(--font-family-heading)]">Classrooms — Enrolled Students</h2>
+                            <p className="text-xs text-slate-500 mt-0.5">Select a student to view enrolled courses, attendance, and classroom progress.</p>
+                          </div>
+
+                          {/* Active vs Archived Tabs */}
+                          <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
+                            <button
+                              onClick={() => setStudentStatusTab('active')}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                studentStatusTab === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                              }`}
+                            >
+                              Active Students ({activeStudentRecords.length})
+                            </button>
+                            <button
+                              onClick={() => setStudentStatusTab('archived')}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                studentStatusTab === 'archived' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                              }`}
+                            >
+                              Archived Students ({archivedStudentRecords.length})
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Filter Bar */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
+                          {/* Search Input */}
+                          <div className="relative">
+                            <Search size={15} className="absolute left-3 top-2.5 text-slate-400" />
+                            <input
+                              type="text"
+                              placeholder="Search by student name or email..."
+                              value={studentSearchTerm}
+                              onChange={(e) => setStudentSearchTerm(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            />
+                          </div>
+
+                          {/* Course Filter */}
+                          <div className="relative">
+                            <Filter size={15} className="absolute left-3 top-2.5 text-slate-400" />
+                            <select
+                              value={studentCourseFilter}
+                              onChange={(e) => setStudentCourseFilter(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            >
+                              <option value="all">All Courses</option>
+                              {courses.map((c) => (
+                                <option key={c._id} value={c.title}>{c.title}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Teacher Filter */}
+                          <div className="relative">
+                            <Filter size={15} className="absolute left-3 top-2.5 text-slate-400" />
+                            <select
+                              value={studentTeacherFilter}
+                              onChange={(e) => setStudentTeacherFilter(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            >
+                              <option value="all">All Teachers</option>
+                              {approvedTeachers.map((t) => (
+                                <option key={t._id} value={t.name}>{t.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Students Grid */}
+                      {currentStudentList.length === 0 ? (
+                        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
+                          <User size={36} className="text-slate-300 mx-auto mb-3" />
+                          <h3 className="text-base font-bold text-slate-800">No {studentStatusTab} students found</h3>
+                          <p className="text-xs text-slate-500 mt-1">Try adjusting your search or filters.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {currentStudentList.map((st) => (
+                            <div
+                              key={st._id}
+                              className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative flex flex-col justify-between"
+                            >
+                              <div>
+                                {/* Header & Actions */}
+                                <div className="flex items-start justify-between gap-3 mb-4">
+                                  <div
+                                    onClick={() => setSelectedStudentId(st._id)}
+                                    className="flex items-center gap-3 cursor-pointer group min-w-0"
+                                  >
+                                    <div className="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-lg shrink-0 overflow-hidden">
+                                      {st.avatar ? (
+                                        <img src={st.avatar} alt={st.name} className="w-full h-full object-cover" />
+                                      ) : (
+                                        st.name.charAt(0).toUpperCase()
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                                        {st.name}
+                                      </h3>
+                                      <p className="text-xs text-slate-500 truncate">{st.email || 'No email'}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Dropdown Menu */}
+                                  <div className="relative shrink-0">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setActiveMenuStudentId(activeMenuStudentId === st._id ? null : st._id)
+                                      }}
+                                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                    >
+                                      <MoreVertical size={16} />
+                                    </button>
+
+                                    {activeMenuStudentId === st._id && (
+                                      <div className="absolute right-0 top-8 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1.5 text-xs animate-scale-in">
+                                        <button
+                                          onClick={() => {
+                                            setActiveMenuStudentId(null)
+                                            setSelectedStudentId(st._id)
+                                          }}
+                                          className="w-full px-3 py-2 text-left font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                        >
+                                          <BookOpen size={13} /> View Courses
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setActiveMenuStudentId(null)
+                                            setEditingStudentForm({
+                                              id: st._id,
+                                              name: st.name,
+                                              email: st.email,
+                                              phoneNumber: st.phoneNumber || '',
+                                            })
+                                            setEditStudentModal(true)
+                                          }}
+                                          className="w-full px-3 py-2 text-left font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                        >
+                                          <Pencil size={13} /> Edit Student
+                                        </button>
+                                        <button
+                                          onClick={() => handleArchiveStudent(st._id)}
+                                          className="w-full px-3 py-2 text-left font-medium text-amber-700 hover:bg-amber-50 flex items-center gap-2"
+                                        >
+                                          {st.isArchived ? <RotateCcw size={13} /> : <Archive size={13} />}
+                                          {st.isArchived ? 'Restore Student' : 'Archive Student'}
+                                        </button>
+                                        <div className="border-t border-slate-100 my-1" />
+                                        <button
+                                          onClick={() => {
+                                            setActiveMenuStudentId(null)
+                                            setDeletingStudent(st)
+                                            setDeleteStudentModal(true)
+                                          }}
+                                          className="w-full px-3 py-2 text-left font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                        >
+                                          <Trash2 size={13} /> Delete Student
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Badges & Stats */}
+                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 grid grid-cols-2 gap-2 text-center text-xs">
+                                  <div>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400">Purchased Courses</p>
+                                    <p className="text-sm font-bold text-slate-900">{st.classrooms.length}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400">Active Classrooms</p>
+                                    <p className="text-sm font-bold text-blue-600">
+                                      {st.classrooms.filter((c) => c.status === 'active').length}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* View Profile Button */}
+                              <button
+                                onClick={() => setSelectedStudentId(st._id)}
+                                className="mt-4 w-full py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                View Purchased Courses ({st.classrooms.length})
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {tab === 'teachers' && (
               <div className="space-y-6">
@@ -1380,6 +1848,100 @@ export default function AdminDashboard() {
             </form>
           )
         })()}
+      </Modal>
+
+      {/* ── Edit Student Modal ───────────────────────── */}
+      <Modal isOpen={editStudentModal} onClose={() => setEditStudentModal(false)} title="Edit Student Information">
+        <form onSubmit={handleEditStudentSave} className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Student Name</label>
+            <input
+              type="text"
+              required
+              value={editingStudentForm.name}
+              onChange={(e) => setEditingStudentForm({ ...editingStudentForm, name: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Email Address</label>
+            <input
+              type="email"
+              required
+              value={editingStudentForm.email}
+              onChange={(e) => setEditingStudentForm({ ...editingStudentForm, email: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Phone Number</label>
+            <input
+              type="text"
+              placeholder="e.g. +91 9876543210"
+              value={editingStudentForm.phoneNumber}
+              onChange={(e) => setEditingStudentForm({ ...editingStudentForm, phoneNumber: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setEditStudentModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1"
+              loading={savingStudentEdit}
+            >
+              Save Student Info
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Delete Student Confirmation Modal ─────────── */}
+      <Modal isOpen={deleteStudentModal} onClose={() => setDeleteStudentModal(false)} title="Delete Student Confirmation">
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+            <ShieldAlert className="text-red-600 shrink-0 mt-0.5" size={20} />
+            <div>
+              <h4 className="text-sm font-bold text-red-900">Permanent Deletion Warning</h4>
+              <p className="text-xs text-red-700 mt-0.5">
+                Are you sure you want to permanently delete <strong className="text-red-900">{deletingStudent?.name}</strong>? This action cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-500">
+            Deleting this student will remove their account record and un-enroll them from all active classrooms.
+          </p>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setDeleteStudentModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              className="flex-1"
+              loading={deletingStudentLoading}
+              onClick={handleDeleteStudentConfirm}
+            >
+              Permanently Delete Student
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )
