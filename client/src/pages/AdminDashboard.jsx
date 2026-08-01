@@ -16,7 +16,8 @@ import toast from 'react-hot-toast'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState('courses')
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [teachers, setTeachers] = useState([])
   const [approvedTeachers, setApprovedTeachers] = useState([])
   const [students, setStudents] = useState([])
@@ -24,14 +25,30 @@ export default function AdminDashboard() {
   const [classrooms, setClassrooms] = useState([])
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [searchParams, setSearchParams] = useSearchParams()
+
+  const tab = searchParams.get('tab') || 'courses'
+  const setTab = (newTab) => {
+    setSearchParams({ tab: newTab })
+  }
+
+  const selectedStudentId = searchParams.get('studentId')
+  const setSelectedStudentId = (studentId) => {
+    const currentTab = searchParams.get('tab') || 'classrooms'
+    if (studentId) {
+      setSearchParams({ tab: currentTab, studentId })
+    } else {
+      setSearchParams({ tab: currentTab })
+    }
+  }
+
   const activeClassroomId = searchParams.get('classroomId')
   const setActiveClassroomId = (id) => {
-    if (id) {
-      setSearchParams({ classroomId: id })
-    } else {
-      setSearchParams({})
-    }
+    const currentTab = searchParams.get('tab') || 'classrooms'
+    const currentStudentId = searchParams.get('studentId')
+    const params = { tab: currentTab }
+    if (currentStudentId) params.studentId = currentStudentId
+    if (id) params.classroomId = id
+    setSearchParams(params)
   }
 
   // Course form states
@@ -151,7 +168,6 @@ export default function AdminDashboard() {
   }
 
   // Student-Centric Classrooms States
-  const [selectedStudentId, setSelectedStudentId] = useState(null)
   const [studentSearchTerm, setStudentSearchTerm] = useState('')
   const [studentCourseFilter, setStudentCourseFilter] = useState('all')
   const [studentTeacherFilter, setStudentTeacherFilter] = useState('all')
@@ -786,9 +802,9 @@ export default function AdminDashboard() {
                     <div className="space-y-6 animate-slide-up">
                       <button
                         onClick={() => setSelectedStudentId(null)}
-                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50/50 shadow-sm transition-all group"
+                        className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 font-semibold transition-colors"
                       >
-                        <ArrowLeft size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" /> Back to Students
+                        <ArrowLeft size={16} /> Back to Enrolled Students List
                       </button>
 
                       {/* Student Header Info Card */}
@@ -2093,7 +2109,7 @@ function AdminClassroomDeepDive({ id, onBack }) {
   return (
     <div className="animate-slide-up">
       <button onClick={onBack} className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 font-medium mb-4 transition-colors">
-        <ArrowLeft size={16} /> Back to Classrooms
+        <ArrowLeft size={16} /> Back to Dashboard
       </button>
 
       {/* Header Info */}
