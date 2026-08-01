@@ -789,7 +789,7 @@ export default function AdminDashboard() {
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm group cursor-pointer"
                       >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform text-slate-500 group-hover:text-blue-600" />
-                        <span>← Back to Students</span>
+                        <span>Back to Students</span>
                       </button>
 
                       {/* Student Header Info Card */}
