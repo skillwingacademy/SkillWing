@@ -16,8 +16,7 @@ import toast from 'react-hot-toast'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-
+  const [tab, setTab] = useState('courses')
   const [teachers, setTeachers] = useState([])
   const [approvedTeachers, setApprovedTeachers] = useState([])
   const [students, setStudents] = useState([])
@@ -25,30 +24,14 @@ export default function AdminDashboard() {
   const [classrooms, setClassrooms] = useState([])
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-  const tab = searchParams.get('tab') || 'courses'
-  const setTab = (newTab) => {
-    setSearchParams({ tab: newTab })
-  }
-
-  const selectedStudentId = searchParams.get('studentId')
-  const setSelectedStudentId = (studentId) => {
-    const currentTab = searchParams.get('tab') || 'classrooms'
-    if (studentId) {
-      setSearchParams({ tab: currentTab, studentId })
-    } else {
-      setSearchParams({ tab: currentTab })
-    }
-  }
-
+  const [searchParams, setSearchParams] = useSearchParams()
   const activeClassroomId = searchParams.get('classroomId')
   const setActiveClassroomId = (id) => {
-    const currentTab = searchParams.get('tab') || 'classrooms'
-    const currentStudentId = searchParams.get('studentId')
-    const params = { tab: currentTab }
-    if (currentStudentId) params.studentId = currentStudentId
-    if (id) params.classroomId = id
-    setSearchParams(params)
+    if (id) {
+      setSearchParams({ classroomId: id })
+    } else {
+      setSearchParams({})
+    }
   }
 
   // Course form states
@@ -168,6 +151,7 @@ export default function AdminDashboard() {
   }
 
   // Student-Centric Classrooms States
+  const [selectedStudentId, setSelectedStudentId] = useState(null)
   const [studentSearchTerm, setStudentSearchTerm] = useState('')
   const [studentCourseFilter, setStudentCourseFilter] = useState('all')
   const [studentTeacherFilter, setStudentTeacherFilter] = useState('all')

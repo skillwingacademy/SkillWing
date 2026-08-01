@@ -12,6 +12,7 @@ async function verifySessionOwnership(sessionId, userId, role) {
 
   if (
     role === 'teacher' &&
+    session.classroom.teacher &&
     session.classroom.teacher.toString() !== userId
   ) {
     return { error: 'Access denied', status: 403 };

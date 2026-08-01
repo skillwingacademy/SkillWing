@@ -45,7 +45,7 @@ const getClassroomById = async (req, res) => {
     // Security: student must be enrolled
     if (
       req.user.role === 'student' &&
-      !classroom.enrolledStudents.some(s => s && (s._id ? s._id.toString() : s.toString()) === req.user.id)
+      !(classroom.enrolledStudents || []).some(s => s && (s._id ? s._id.toString() : s.toString()) === req.user.id)
     ) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
@@ -65,20 +65,20 @@ const getClassroomById = async (req, res) => {
   }
 };
 
-// @desc    Create a session for a classroom
+// @desc    Add a single session to a classroom
 // @route   POST /api/classrooms/:id/sessions
-// @access  Private (teacher)
+// @access  Private (teacher/admin)
 const createSession = async (req, res) => {
   try {
     const classroom = await Classroom.findById(req.params.id);
-
     if (!classroom) {
       return res.status(404).json({ success: false, message: 'Classroom not found' });
     }
 
-    // Verify ownership
+    // Security: teacher can only add sessions to their own classroom
     if (
       req.user.role === 'teacher' &&
+      classroom.teacher &&
       classroom.teacher.toString() !== req.user.id
     ) {
       return res.status(403).json({ success: false, message: 'Access denied' });
@@ -130,10 +130,12 @@ const createSession = async (req, res) => {
     const sessionNumber = classroom.nextSessionNumber;
 
     // Build initial studentAttendance array from all enrolled students
-    const studentAttendance = classroom.enrolledStudents.map((studentId) => ({
-      studentId,
-      attendanceStatus: 'pending',
-    }));
+    const studentAttendance = (classroom.enrolledStudents || [])
+      .filter(Boolean)
+      .map((studentId) => ({
+        studentId: studentId._id ? studentId._id : studentId,
+        attendanceStatus: 'pending',
+      }));
 
     const session = await Session.create({
       classroom: classroom._id,

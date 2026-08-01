@@ -27,6 +27,7 @@ async function verifySessionOwnership(sessionId, userId, role) {
 
   if (
     role === 'teacher' &&
+    session.classroom.teacher &&
     session.classroom.teacher.toString() !== userId
   ) {
     return { error: 'Access denied', status: 403 };
@@ -56,10 +57,10 @@ const getSessionById = async (req, res) => {
     // Check access: must be teacher, admin, or enrolled student
     const userId = req.user.id;
     const role = req.user.role;
-    const isTeacher = classroom.teacher.toString() === userId;
+    const isTeacher = classroom.teacher && classroom.teacher.toString() === userId;
     const isAdmin = role === 'admin';
     const isEnrolled = (classroom.enrolledStudents || []).some(
-      (s) => s.toString() === userId
+      (s) => s && s.toString() === userId
     );
 
     if (!isTeacher && !isAdmin && !isEnrolled) {
@@ -123,11 +124,11 @@ const updateSession = async (req, res) => {
       if (typeof req.body.homework === 'string') {
         // Plain string from old frontend — wrap it
         session.homework = { content: req.body.homework, files: session.homework?.files || [] };
-      } else if (typeof req.body.homework === 'object') {
+      } else if (typeof req.body.homework === 'object' && req.body.homework !== null) {
+        if (!session.homework) session.homework = { content: '', files: [] };
         if (req.body.homework.content !== undefined) {
           session.homework.content = req.body.homework.content;
         }
-        // Files are managed via the file upload endpoint, not here
       }
     }
 
@@ -135,7 +136,8 @@ const updateSession = async (req, res) => {
     if (req.body.teacherNotes !== undefined) {
       if (typeof req.body.teacherNotes === 'string') {
         session.teacherNotes = { content: req.body.teacherNotes, files: session.teacherNotes?.files || [] };
-      } else if (typeof req.body.teacherNotes === 'object') {
+      } else if (typeof req.body.teacherNotes === 'object' && req.body.teacherNotes !== null) {
+        if (!session.teacherNotes) session.teacherNotes = { content: '', files: [] };
         if (req.body.teacherNotes.content !== undefined) {
           session.teacherNotes.content = req.body.teacherNotes.content;
         }
