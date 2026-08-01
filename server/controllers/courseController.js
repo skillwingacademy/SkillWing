@@ -321,18 +321,23 @@ const uploadThumbnail = async (req, res) => {
     const file = req.file;
     const filename = `thumbnail-${Date.now()}-${Math.round(Math.random() * 1E9)}.jpg`;
     
-    // Pass to GCS
-    const publicUrl = await gcsService.uploadCourseThumbnail(file.buffer, filename, file.mimetype);
+    let publicUrl;
+    try {
+      publicUrl = await gcsService.uploadCourseThumbnail(file.buffer, filename, file.mimetype);
+    } catch (gcsErr) {
+      console.warn('[Thumbnail Upload] GCS upload unavailable, generating base64 Data URL fallback:', gcsErr.message);
+      publicUrl = `data:${file.mimetype || 'image/jpeg'};base64,${file.buffer.toString('base64')}`;
+    }
 
     res.status(200).json({
       success: true,
       data: publicUrl,
     });
   } catch (error) {
-    console.error('Upload thumbnail error:', error.message);
+    console.error('Upload thumbnail error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error uploading thumbnail',
+      message: error.message || 'Server error uploading thumbnail',
     });
   }
 };
