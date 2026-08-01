@@ -226,30 +226,6 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleUpdateRate = async (e) => {
-    e.preventDefault();
-    if (!editingTeacher) return;
-    setRateLoading(true);
-    try {
-      await api.patch(`/admin/teachers/${editingTeacher.teacherId}/rate`, { rate: Number(newRate) });
-      toast.success('Rate updated successfully');
-      setRateModal(false);
-      // Refresh approved teachers list so the rate updates live on the Teachers tab
-      const apprRes = await api.get('/admin/teachers/approved');
-      setApprovedTeachers(apprRes.data.data || []);
-      // Also refresh payroll if on that tab
-      if (tab === 'payroll') {
-        setPayrollLoading(true);
-        const res = await api.get(`/admin/payouts?month=${payrollMonth}&year=${payrollYear}`);
-        setPayrollData(res.data.data || []);
-        setPayrollLoading(false);
-      }
-    } catch (err) {
-      toast.error('Failed to update rate');
-    } finally {
-      setRateLoading(false);
-    }
-  };
 
   const fetchPayroll = async () => {
     setPayrollLoading(true)
@@ -1057,25 +1033,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Rate Edit Modal */}
-      <Modal isOpen={rateModal} onClose={() => setRateModal(false)} title="Edit Teacher Rate">
-        <form onSubmit={handleUpdateRate} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-white block mb-1">
-              Per-Class Rate for {editingTeacher?.teacherName} (₹)
-            </label>
-            <input
-              type="number"
-              required
-              min="0"
-              value={newRate}
-              onChange={(e) => setNewRate(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-            />
-          </div>
-          <Button type="submit" variant="primary" fullWidth loading={rateLoading}>Update Rate</Button>
-        </form>
-      </Modal>
 
       {/* ── Schedule Demo Modal ─────────────── */}
       <Modal isOpen={demoModal} onClose={() => setDemoModal(false)} title="Schedule Demo Class">
