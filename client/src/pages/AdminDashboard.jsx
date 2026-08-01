@@ -74,38 +74,78 @@ export default function AdminDashboard() {
 
   const handleSaveTeacherLevelAndRate = async (e) => {
     if (e) e.preventDefault()
-    if (!editingTeacherData) return
+    if (!editingTeacherData || savingTeacherRate) return
     setSavingTeacherRate(true)
+    const teacherId = editingTeacherData._id || editingTeacherData.teacherId
+    console.log('[Teacher Rate/Level Save] Sending request for teacher:', teacherId, {
+      teacherLevel: selectedTeacherLevel,
+      perClassRate: Number(selectedPerClassRate),
+    })
+
+    let isSuccess = false
     try {
-      const teacherId = editingTeacherData._id || editingTeacherData.teacherId
-      await api.put(`/admin/teachers/${teacherId}/rate-level`, {
+      const res = await api.put(`/admin/teachers/${teacherId}/rate-level`, {
         teacherLevel: selectedTeacherLevel,
         perClassRate: Number(selectedPerClassRate),
       })
-      toast.success('Teacher level and per-class rate updated successfully')
-      setEditTeacherRateModal(false)
-      loadData()
-      if (tab === 'payroll') loadPayroll()
+      console.log('[Teacher Rate/Level Save] Response:', res.data)
+
+      if (res.status >= 200 && res.status < 300 && res.data?.success !== false) {
+        isSuccess = true
+        toast.success(res.data?.message || 'Teacher level and per-class rate updated successfully')
+        setEditTeacherRateModal(false)
+      } else {
+        toast.error(res.data?.message || 'Failed to update teacher level and rate')
+      }
     } catch (err) {
+      console.error('[Teacher Rate/Level Save] Error:', err)
       toast.error(err.response?.data?.message || 'Failed to update teacher level and rate')
     } finally {
       setSavingTeacherRate(false)
+    }
+
+    if (isSuccess) {
+      try {
+        await loadData()
+        if (tab === 'payroll') await loadPayroll()
+      } catch (refreshErr) {
+        console.error('[Teacher Rate/Level Save] Post-save data refresh error (non-fatal):', refreshErr)
+      }
     }
   }
 
   const handleSaveRateMatrix = async (e) => {
     if (e) e.preventDefault()
+    if (savingRateMatrix) return
     setSavingRateMatrix(true)
+    console.log('[Payment Matrix Save] Sending request with payload:', rateMatrixForm)
+
+    let isSuccess = false
     try {
-      await api.put('/admin/teacher-rates', rateMatrixForm)
-      toast.success('Payment matrix updated successfully')
-      setShowRateMatrixModal(false)
-      loadData()
-      if (tab === 'payroll') loadPayroll()
+      const res = await api.put('/admin/teacher-rates', rateMatrixForm)
+      console.log('[Payment Matrix Save] Response:', res.data)
+
+      if (res.status >= 200 && res.status < 300 && res.data?.success !== false) {
+        isSuccess = true
+        toast.success(res.data?.message || 'Payment matrix updated successfully')
+        setShowRateMatrixModal(false)
+      } else {
+        toast.error(res.data?.message || 'Failed to update payment matrix')
+      }
     } catch (err) {
+      console.error('[Payment Matrix Save] Error:', err)
       toast.error(err.response?.data?.message || 'Failed to update payment matrix')
     } finally {
       setSavingRateMatrix(false)
+    }
+
+    if (isSuccess) {
+      try {
+        await loadData()
+        if (tab === 'payroll') await loadPayroll()
+      } catch (refreshErr) {
+        console.error('[Payment Matrix Save] Post-save data refresh error (non-fatal):', refreshErr)
+      }
     }
   }
 
