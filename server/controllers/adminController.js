@@ -319,14 +319,35 @@ const updateTeacherRateConfig = async (req, res) => {
     if (!config) {
       config = new TeacherRateConfig();
     }
-    if (Junior) config.Junior = { ...config.Junior, ...Junior };
-    if (Senior) config.Senior = { ...config.Senior, ...Senior };
-    if (Master) config.Master = { ...config.Master, ...Master };
+    if (Junior) {
+      config.Junior = {
+        range1: Number(Junior.range1 ?? config.Junior?.range1 ?? 120),
+        range2: Number(Junior.range2 ?? config.Junior?.range2 ?? 135),
+        range3: Number(Junior.range3 ?? config.Junior?.range3 ?? 150),
+        range4: Number(Junior.range4 ?? config.Junior?.range4 ?? 165),
+      };
+    }
+    if (Senior) {
+      config.Senior = {
+        range1: Number(Senior.range1 ?? config.Senior?.range1 ?? 140),
+        range2: Number(Senior.range2 ?? config.Senior?.range2 ?? 155),
+        range3: Number(Senior.range3 ?? config.Senior?.range3 ?? 170),
+        range4: Number(Senior.range4 ?? config.Senior?.range4 ?? 185),
+      };
+    }
+    if (Master) {
+      config.Master = {
+        range1: Number(Master.range1 ?? config.Master?.range1 ?? 160),
+        range2: Number(Master.range2 ?? config.Master?.range2 ?? 175),
+        range3: Number(Master.range3 ?? config.Master?.range3 ?? 190),
+        range4: Number(Master.range4 ?? config.Master?.range4 ?? 205),
+      };
+    }
     await config.save();
     res.status(200).json({ success: true, message: 'Payment matrix updated successfully', data: config });
   } catch (error) {
     console.error('updateTeacherRateConfig error:', error);
-    res.status(500).json({ success: false, message: 'Server Error' });
+    res.status(500).json({ success: false, message: error.message || 'Server Error' });
   }
 };
 
