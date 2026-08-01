@@ -254,11 +254,10 @@ const getPayouts = async (req, res) => {
           _id: 0,
           teacherId: '$_id',
           teacherName: '$teacherData.name',
+          teacherLevel: { $ifNull: ['$teacherData.teacherLevel', '$teacherData.profile.teacherLevel', 'Junior'] },
           perClassRate: { $ifNull: ['$teacherData.profile.perClassRate', 0] },
           completedSessions: 1,
-          grossEarnings: 1,
           totalPenalty: 1,
-          netPayout: { $subtract: ['$grossEarnings', '$totalPenalty'] },
           deductions: {
             noShow: { count: '$noShowCount', amount: '$noShowAmount' },
             late: { count: '$lateCount', amount: '$lateAmount' },
@@ -270,9 +269,23 @@ const getPayouts = async (req, res) => {
       { $sort: { teacherName: 1 } },
     ]);
 
+    const formattedPayroll = payroll.map((row) => {
+      const perClassRate = row.perClassRate || 0;
+      const completedSessions = row.completedSessions || 0;
+      const grossEarnings = completedSessions * perClassRate;
+      const totalPenalty = row.totalPenalty || 0;
+      const netPayout = Math.max(0, grossEarnings - totalPenalty);
+
+      return {
+        ...row,
+        grossEarnings,
+        netPayout,
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: payroll,
+      data: formattedPayroll,
     });
   } catch (error) {
     console.error('getPayouts error:', error.message);

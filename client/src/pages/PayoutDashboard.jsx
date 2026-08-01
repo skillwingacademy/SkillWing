@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import api from '../api/axios'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import TeacherLevelBadge from '../components/ui/TeacherLevelBadge'
 import {
   ArrowLeft, DollarSign, TrendingUp, TrendingDown, AlertTriangle,
   Clock, UserX, XCircle, CheckCircle2, Calendar, ChevronRight
@@ -303,20 +304,38 @@ export default function PayoutDashboard() {
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-emerald-500" />
-                  Earnings
+                  Earnings & Level Rate Details
                 </h3>
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  {payoutData.teacherLevel && (
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Teacher Level</p>
+                        <p className="text-xs text-slate-400">Assigned level</p>
+                      </div>
+                      <TeacherLevelBadge level={payoutData.teacherLevel} />
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
                     <div>
                       <p className="text-sm font-medium text-slate-700">Total Regular Classes</p>
                       <p className="text-xs text-slate-400">Completed sessions</p>
                     </div>
                     <span className="text-lg font-bold text-slate-900">{payoutData.completedSessions || 0}</span>
                   </div>
-                  <div className="flex justify-between items-center py-3">
+                  {payoutData.perClassRate !== undefined && (
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Selected Rate</p>
+                        <p className="text-xs text-slate-400">Per class payout</p>
+                      </div>
+                      <span className="text-base font-bold text-blue-600">₹{payoutData.perClassRate} / class</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center py-2">
                     <div>
                       <p className="text-sm font-medium text-slate-700">Gross Cash</p>
-                      <p className="text-xs text-slate-400">Before deductions</p>
+                      <p className="text-xs text-slate-400">Completed Sessions × Selected Rate</p>
                     </div>
                     <span className="text-lg font-bold text-emerald-600">₹{(payoutData.grossEarnings || 0).toLocaleString('en-IN')}</span>
                   </div>

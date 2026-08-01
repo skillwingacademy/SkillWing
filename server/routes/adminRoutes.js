@@ -10,7 +10,10 @@ const {
   getSessionStats,
   getTeacherWorkload,
   getAllClassrooms,
-  updateTeacherRate
+  updateTeacherRate,
+  getTeacherRateConfig,
+  updateTeacherRateConfig,
+  updateTeacherLevelAndRate
 } = require('../controllers/adminController');
 const { scheduleBatch, getPayouts, addSingleSession } = require('../controllers/adminScheduleController');
 const { protect } = require('../middleware/authMiddleware');
@@ -19,6 +22,14 @@ const { authorize } = require('../middleware/rbacMiddleware');
 // All admin routes are protected and restricted to admin role
 router.use(protect);
 router.use(authorize('admin'));
+
+// GET & PUT /api/admin/teacher-rates
+router.get('/teacher-rates', getTeacherRateConfig);
+router.put('/teacher-rates', updateTeacherRateConfig);
+
+// PUT & PATCH /api/admin/teachers/:id/rate-level
+router.put('/teachers/:id/rate-level', updateTeacherLevelAndRate);
+router.patch('/teachers/:id/rate-level', updateTeacherLevelAndRate);
 
 // GET /api/admin/teachers/pending
 router.get('/teachers/pending', getPendingTeachers);

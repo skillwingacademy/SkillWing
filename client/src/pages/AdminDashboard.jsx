@@ -3,13 +3,14 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
   Check, X, ShieldAlert, BookOpen, MapPin, Phone, Calendar,
   PlusCircle, Pencil, LayoutGrid, Users, UserCheck, GraduationCap, Menu, ArrowLeft, Video,
-  FileText, PlayCircle, Clock, DollarSign, Plus, CalendarPlus, CheckCircle2, XCircle, CalendarDays, MessageSquare
+  FileText, PlayCircle, Clock, DollarSign, Plus, CalendarPlus, CheckCircle2, XCircle, CalendarDays, MessageSquare, Award
 } from 'lucide-react'
 import api from '../api/axios'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import AdminCourseForm from '../components/admin/AdminCourseForm'
+import TeacherLevelBadge from '../components/ui/TeacherLevelBadge'
 import toast from 'react-hot-toast'
 
 export default function AdminDashboard() {
@@ -49,11 +50,64 @@ export default function AdminDashboard() {
   const [payrollMonth, setPayrollMonth] = useState(new Date().getMonth() + 1)
   const [payrollYear, setPayrollYear] = useState(new Date().getFullYear())
 
-  // Rate Edit Modal
-  const [rateModal, setRateModal] = useState(false)
-  const [editingTeacher, setEditingTeacher] = useState(null)
-  const [newRate, setNewRate] = useState(0)
-  const [rateLoading, setRateLoading] = useState(false)
+  // Payment Matrix & Manual Rate Selection States
+  const [rateConfig, setRateConfig] = useState(null)
+  const [showRateMatrixModal, setShowRateMatrixModal] = useState(false)
+  const [rateMatrixForm, setRateMatrixForm] = useState(null)
+  const [savingRateMatrix, setSavingRateMatrix] = useState(false)
+
+  // Teacher Level & Manual Rate Edit Modal State
+  const [editTeacherRateModal, setEditTeacherRateModal] = useState(false)
+  const [editingTeacherData, setEditingTeacherData] = useState(null)
+  const [selectedTeacherLevel, setSelectedTeacherLevel] = useState('Junior')
+  const [selectedPerClassRate, setSelectedPerClassRate] = useState(120)
+  const [savingTeacherRate, setSavingTeacherRate] = useState(false)
+
+  const openTeacherRateModal = (teacher) => {
+    const currentLevel = teacher.teacherLevel || teacher.profile?.teacherLevel || 'Junior'
+    const currentRate = teacher.profile?.perClassRate || 0
+    setEditingTeacherData(teacher)
+    setSelectedTeacherLevel(currentLevel)
+    setSelectedPerClassRate(currentRate)
+    setEditTeacherRateModal(true)
+  }
+
+  const handleSaveTeacherLevelAndRate = async (e) => {
+    if (e) e.preventDefault()
+    if (!editingTeacherData) return
+    setSavingTeacherRate(true)
+    try {
+      const teacherId = editingTeacherData._id || editingTeacherData.teacherId
+      await api.put(`/admin/teachers/${teacherId}/rate-level`, {
+        teacherLevel: selectedTeacherLevel,
+        perClassRate: Number(selectedPerClassRate),
+      })
+      toast.success('Teacher level and per-class rate updated successfully')
+      setEditTeacherRateModal(false)
+      loadData()
+      if (tab === 'payroll') loadPayroll()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update teacher level and rate')
+    } finally {
+      setSavingTeacherRate(false)
+    }
+  }
+
+  const handleSaveRateMatrix = async (e) => {
+    if (e) e.preventDefault()
+    setSavingRateMatrix(true)
+    try {
+      await api.put('/admin/teacher-rates', rateMatrixForm)
+      toast.success('Payment matrix updated successfully')
+      setShowRateMatrixModal(false)
+      loadData()
+      if (tab === 'payroll') loadPayroll()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update payment matrix')
+    } finally {
+      setSavingRateMatrix(false)
+    }
+  }
 
   // Demo request state
   const [demoRequests, setDemoRequests] = useState([])
@@ -72,18 +126,20 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      const [pendRes, courRes, apprRes, studRes, classRes] = await Promise.all([
+      const [pendRes, courRes, apprRes, studRes, classRes, rateRes] = await Promise.all([
         api.get('/admin/teachers/pending'),
         api.get('/courses'),
         api.get('/admin/teachers/approved'),
         api.get('/admin/students'),
-        api.get('/admin/classrooms')
+        api.get('/admin/classrooms'),
+        api.get('/admin/teacher-rates')
       ])
       setTeachers(pendRes.data.data || [])
       setCourses(courRes.data.data || [])
       setApprovedTeachers(apprRes.data.data || [])
       setStudents(studRes.data.data || [])
       setClassrooms(classRes.data.data || [])
+      setRateConfig(rateRes.data.data || null)
       // Fetch demo requests
       try {
         const demoRes = await api.get('/demo/admin/requests')
@@ -605,55 +661,78 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'teachers' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {approvedTeachers.length === 0 ? (
-                  <div className="col-span-full bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
-                     <p className="text-slate-500">No approved teachers found.</p>
+              <div className="space-y-6">
+                {/* Header Actions */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 font-[family-name:var(--font-family-heading)]">Approved Teachers</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">Manage teacher levels, per-class rates, and assigned courses.</p>
                   </div>
-                ) : (
-                  approvedTeachers.map(teacher => {
-                    const teacherCourses = getTeacherCourses(teacher._id)
-                    const currentRate = teacher.profile?.perClassRate || 0
-                    return (
-                      <div key={teacher._id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div
-                            className="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-lg shrink-0 cursor-pointer"
-                            onClick={() => window.open(`/profile/${teacher._id}`, '_blank')}
-                          >
-                            {teacher.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3
-                              className="text-lg font-bold text-slate-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setRateMatrixForm(rateConfig || {
+                        Junior: { range1: 120, range2: 135, range3: 150, range4: 165 },
+                        Senior: { range1: 140, range2: 155, range3: 170, range4: 185 },
+                        Master: { range1: 160, range2: 175, range3: 190, range4: 205 },
+                      });
+                      setShowRateMatrixModal(true);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Award size={16} /> Teacher Payment Settings
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {approvedTeachers.length === 0 ? (
+                    <div className="col-span-full bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
+                       <p className="text-slate-500">No approved teachers found.</p>
+                    </div>
+                  ) : (
+                    approvedTeachers.map(teacher => {
+                      const teacherCourses = getTeacherCourses(teacher._id)
+                      const currentRate = teacher.profile?.perClassRate || 0
+                      const teacherLevel = teacher.teacherLevel || teacher.profile?.teacherLevel || 'Junior'
+                      return (
+                        <div key={teacher._id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div
+                              className="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-lg shrink-0 cursor-pointer"
                               onClick={() => window.open(`/profile/${teacher._id}`, '_blank')}
-                            >{teacher.name}</h3>
-                            <p className="text-sm text-slate-500 truncate">{teacher.email}</p>
+                            >
+                              {teacher.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3
+                                  className="text-lg font-bold text-slate-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                                  onClick={() => window.open(`/profile/${teacher._id}`, '_blank')}
+                                >{teacher.name}</h3>
+                                <TeacherLevelBadge level={teacherLevel} />
+                              </div>
+                              <p className="text-sm text-slate-500 truncate">{teacher.email}</p>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Per-class rate row */}
-                        <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 mb-4">
-                          <div>
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Per-Class Rate</p>
-                            <p className="text-lg font-bold text-slate-900">
-                              {currentRate > 0 ? `₹${currentRate.toLocaleString('en-IN')}` : <span className="text-slate-400 text-sm font-medium">Not set</span>}
-                            </p>
+                          {/* Level & Rate summary row */}
+                          <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 mb-4">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Selected Per-Class Rate</p>
+                              <p className="text-lg font-bold text-slate-900">
+                                {currentRate > 0 ? `₹${currentRate.toLocaleString('en-IN')}` : <span className="text-slate-400 text-sm font-medium">Not set</span>}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => openTeacherRateModal(teacher)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm"
+                            >
+                              <Pencil size={13} /> Edit Level & Rate
+                            </button>
                           </div>
-                          <button
-                            onClick={() => {
-                              setEditingTeacher({ teacherId: teacher._id, teacherName: teacher.name });
-                              setNewRate(currentRate);
-                              setRateModal(true);
-                            }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm"
-                          >
-                            <Pencil size={13} /> Edit Rate
-                          </button>
-                        </div>
 
-                        <div className="border-t border-slate-100 pt-4">
-                          <h4 className="text-sm font-semibold text-slate-700 mb-2">Assigned Courses ({teacherCourses.length}):</h4>
+                          <div className="border-t border-slate-100 pt-4">
+                            <h4 className="text-sm font-semibold text-slate-700 mb-2">Assigned Courses ({teacherCourses.length}):</h4>
                           {teacherCourses.length > 0 ? (
                             <ul className="space-y-1">
                               {teacherCourses.map(c => (
@@ -671,6 +750,7 @@ export default function AdminDashboard() {
                     )
                   })
                 )}
+                </div>
               </div>
             )}
 
@@ -776,29 +856,47 @@ export default function AdminDashboard() {
                   </Link>
                 </div>
 
-                {/* Month/Year Selector */}
-                <div className="flex gap-3 items-center">
-                  <select
-                    value={payrollMonth}
-                    onChange={(e) => setPayrollMonth(parseInt(e.target.value))}
-                    className="bg-white border border-slate-200 text-slate-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                {/* Month/Year Selector & Payment Settings Button */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex gap-3 items-center">
+                    <label className="text-sm font-medium text-slate-700">Period:</label>
+                    <select
+                      value={payrollMonth}
+                      onChange={(e) => setPayrollMonth(parseInt(e.target.value))}
+                      className="bg-white border border-slate-200 text-slate-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          {new Date(2000, i).toLocaleString('default', { month: 'long' })}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={payrollYear}
+                      onChange={(e) => setPayrollYear(parseInt(e.target.value))}
+                      className="bg-white border border-slate-200 text-slate-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const y = new Date().getFullYear() - 2 + i
+                        return <option key={y} value={y}>{y}</option>
+                      })}
+                    </select>
+                  </div>
+
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setRateMatrixForm(rateConfig || {
+                        Junior: { range1: 120, range2: 135, range3: 150, range4: 165 },
+                        Senior: { range1: 140, range2: 155, range3: 170, range4: 185 },
+                        Master: { range1: 160, range2: 175, range3: 190, range4: 205 },
+                      });
+                      setShowRateMatrixModal(true);
+                    }}
+                    className="flex items-center gap-2"
                   >
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        {new Date(2000, i).toLocaleString('default', { month: 'long' })}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={payrollYear}
-                    onChange={(e) => setPayrollYear(parseInt(e.target.value))}
-                    className="bg-white border border-slate-200 text-slate-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {Array.from({ length: 5 }, (_, i) => {
-                      const y = new Date().getFullYear() - 2 + i
-                      return <option key={y} value={y}>{y}</option>
-                    })}
-                  </select>
+                    <Award size={16} /> Teacher Payment Settings
+                  </Button>
                 </div>
 
                 {payrollLoading ? (
@@ -813,8 +911,9 @@ export default function AdminDashboard() {
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50">
                           <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Teacher</th>
+                          <th className="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Level</th>
                           <th className="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sessions</th>
-                          <th className="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rate</th>
+                          <th className="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Selected Rate</th>
                           <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gross</th>
                           <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Penalty</th>
                           <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Net Payout</th>
@@ -824,18 +923,17 @@ export default function AdminDashboard() {
                         {payrollData.map((row, i) => (
                           <tr key={row.teacherId || i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                             <td className="px-5 py-3.5 text-sm font-medium text-slate-900">{row.teacherName}</td>
-                            <td className="px-5 py-3.5 text-sm text-slate-600 text-center">{row.completedSessions}</td>
+                            <td className="px-5 py-3.5 text-sm text-center">
+                              <TeacherLevelBadge level={row.teacherLevel || 'Junior'} />
+                            </td>
+                            <td className="px-5 py-3.5 text-sm text-slate-600 text-center font-bold">{row.completedSessions}</td>
                             <td className="px-5 py-3.5 text-sm text-slate-600 text-center">
                               <div className="flex items-center justify-center gap-2">
-                                <span>₹{row.perClassRate}</span>
+                                <span className="font-semibold text-slate-900">₹{row.perClassRate || 0}</span>
                                 <button
-                                  onClick={() => {
-                                    setEditingTeacher(row);
-                                    setNewRate(row.perClassRate);
-                                    setRateModal(true);
-                                  }}
+                                  onClick={() => openTeacherRateModal(row)}
                                   className="text-slate-400 hover:text-blue-600 transition-colors"
-                                  title="Edit Rate"
+                                  title="Edit Level & Rate"
                                 >
                                   <Pencil size={14} />
                                 </button>
@@ -849,7 +947,7 @@ export default function AdminDashboard() {
                       </tbody>
                       <tfoot>
                         <tr className="bg-slate-50">
-                          <td className="px-5 py-3 text-sm font-bold text-slate-900" colSpan="3">Grand Total</td>
+                          <td className="px-5 py-3 text-sm font-bold text-slate-900" colSpan="4">Grand Total</td>
                           <td className="px-5 py-3 text-sm font-bold text-emerald-600 text-right">
                             ₹{payrollData.reduce((sum, r) => sum + (r.grossEarnings || 0), 0).toLocaleString('en-IN')}
                           </td>
@@ -953,10 +1051,9 @@ export default function AdminDashboard() {
                 )}
               </div>
             )}
-
-              </>
-            )}
-          </main>
+          </>
+        )}
+      </main>
         </div>
       </div>
 
@@ -1123,6 +1220,169 @@ export default function AdminDashboard() {
             Assign & Create Sessions
           </Button>
         </div>
+      </Modal>
+
+      {/* ── Teacher Payment Matrix Settings Modal ─────────────── */}
+      <Modal isOpen={showRateMatrixModal} onClose={() => setShowRateMatrixModal(false)} title="Teacher Payment Matrix Settings">
+        <form onSubmit={handleSaveRateMatrix} className="space-y-6">
+          <p className="text-xs text-slate-500">
+            Set the per-class payout rates (₹) for each Teacher Level across monthly session tiers. Admin can manually assign any of these rates to a teacher.
+          </p>
+
+          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="p-3">Teacher Level</th>
+                  <th className="p-3 text-center">0–24 Sessions</th>
+                  <th className="p-3 text-center">25–48 Sessions</th>
+                  <th className="p-3 text-center">49–72 Sessions</th>
+                  <th className="p-3 text-center">73–96 Sessions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {['Junior', 'Senior', 'Master'].map((level) => (
+                  <tr key={level} className="hover:bg-slate-50">
+                    <td className="p-3 font-bold text-slate-900">
+                      <TeacherLevelBadge level={level} />
+                    </td>
+                    {['range1', 'range2', 'range3', 'range4'].map((rangeKey) => (
+                      <td key={rangeKey} className="p-2">
+                        <div className="relative">
+                          <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            required
+                            value={rateMatrixForm?.[level]?.[rangeKey] ?? ''}
+                            onChange={(e) => {
+                              const val = Number(e.target.value)
+                              setRateMatrixForm((prev) => ({
+                                ...prev,
+                                [level]: {
+                                  ...prev?.[level],
+                                  [rangeKey]: val,
+                                },
+                              }))
+                            }}
+                            className="w-full pl-7 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setShowRateMatrixModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1"
+              loading={savingRateMatrix}
+            >
+              Save Payment Matrix
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Edit Teacher Level & Manual Rate Selection Modal ─────────────── */}
+      <Modal isOpen={editTeacherRateModal} onClose={() => setEditTeacherRateModal(false)} title="Edit Teacher Level & Per-Class Rate">
+        {editingTeacherData && (() => {
+          const currentLevelMatrix = (rateConfig && rateConfig[selectedTeacherLevel]) || {
+            Junior: { range1: 120, range2: 135, range3: 150, range4: 165 },
+            Senior: { range1: 140, range2: 155, range3: 170, range4: 185 },
+            Master: { range1: 160, range2: 175, range3: 190, range4: 205 },
+          }[selectedTeacherLevel]
+
+          const levelRateOptions = [
+            { label: `₹${currentLevelMatrix?.range1 || 0} (0–24 Sessions)`, value: currentLevelMatrix?.range1 || 0 },
+            { label: `₹${currentLevelMatrix?.range2 || 0} (25–48 Sessions)`, value: currentLevelMatrix?.range2 || 0 },
+            { label: `₹${currentLevelMatrix?.range3 || 0} (49–72 Sessions)`, value: currentLevelMatrix?.range3 || 0 },
+            { label: `₹${currentLevelMatrix?.range4 || 0} (73–96 Sessions)`, value: currentLevelMatrix?.range4 || 0 },
+          ]
+
+          return (
+            <form onSubmit={handleSaveTeacherLevelAndRate} className="space-y-5">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <p className="text-sm font-bold text-slate-900">{editingTeacherData.name || editingTeacherData.teacherName}</p>
+                <p className="text-xs text-slate-500">{editingTeacherData.email}</p>
+              </div>
+
+              {/* 1. Teacher Level Selection */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">Teacher Level</label>
+                <select
+                  value={selectedTeacherLevel}
+                  onChange={(e) => {
+                    const newLevel = e.target.value
+                    setSelectedTeacherLevel(newLevel)
+                    const newMatrix = (rateConfig && rateConfig[newLevel]) || {
+                      Junior: { range1: 120, range2: 135, range3: 150, range4: 165 },
+                      Senior: { range1: 140, range2: 155, range3: 170, range4: 185 },
+                      Master: { range1: 160, range2: 175, range3: 190, range4: 205 },
+                    }[newLevel]
+                    setSelectedPerClassRate(newMatrix?.range1 || 0)
+                  }}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm cursor-pointer"
+                >
+                  <option value="Junior">Junior</option>
+                  <option value="Senior">Senior</option>
+                  <option value="Master">Master</option>
+                </select>
+              </div>
+
+              {/* 2. Manual Per-Class Rate Selection (Filtered by Level) */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">Per-Class Rate (Manually Selected)</label>
+                <select
+                  value={selectedPerClassRate}
+                  onChange={(e) => setSelectedPerClassRate(Number(e.target.value))}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm cursor-pointer"
+                >
+                  {levelRateOptions.map((opt, idx) => (
+                    <option key={idx} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1.5">
+                  Displays only rate options configured for the <span className="font-semibold text-slate-800">{selectedTeacherLevel}</span> level.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setEditTeacherRateModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="flex-1"
+                  loading={savingTeacherRate}
+                >
+                  Save Level & Rate
+                </Button>
+              </div>
+            </form>
+          )
+        })()}
       </Modal>
     </div>
   )

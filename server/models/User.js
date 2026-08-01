@@ -34,6 +34,11 @@ const userSchema = new mongoose.Schema(
       enum: ['pending', 'approved', 'rejected'],
       default: 'approved',
     },
+    teacherLevel: {
+      type: String,
+      enum: ['Junior', 'Senior', 'Master'],
+      default: 'Junior',
+    },
     // Legacy root-level fields kept for backward compatibility
     phoneNumber: {
       type: String,

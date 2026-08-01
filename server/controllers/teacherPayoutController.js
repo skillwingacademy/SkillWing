@@ -142,11 +142,10 @@ const getMyPayouts = async (req, res) => {
           _id: 0,
           teacherId: '$_id',
           teacherName: '$teacherData.name',
+          teacherLevel: { $ifNull: ['$teacherData.teacherLevel', '$teacherData.profile.teacherLevel', 'Junior'] },
           perClassRate: { $ifNull: ['$teacherData.profile.perClassRate', 0] },
           completedSessions: 1,
-          grossEarnings: 1,
           totalPenalty: 1,
-          netPayout: { $subtract: ['$grossEarnings', '$totalPenalty'] },
           deductions: {
             noShow: { count: '$noShowCount', amount: '$noShowAmount' },
             late: { count: '$lateCount', amount: '$lateAmount' },
@@ -157,22 +156,39 @@ const getMyPayouts = async (req, res) => {
       },
     ]);
 
-    // Return the single teacher result or empty defaults
-    const data = result.length > 0 ? result[0] : {
-      teacherId: req.user.id,
-      teacherName: req.user.name || '',
-      perClassRate: 0,
-      completedSessions: 0,
-      grossEarnings: 0,
-      totalPenalty: 0,
-      netPayout: 0,
-      deductions: {
-        noShow: { count: 0, amount: 0 },
-        late: { count: 0, amount: 0 },
-        lmc: { count: 0, amount: 0 },
-      },
-      sessions: [],
-    };
+    let data;
+    if (result.length > 0) {
+      const raw = result[0];
+      const perClassRate = raw.perClassRate || 0;
+      const completedSessions = raw.completedSessions || 0;
+      const grossEarnings = completedSessions * perClassRate;
+      const totalPenalty = raw.totalPenalty || 0;
+      const netPayout = Math.max(0, grossEarnings - totalPenalty);
+
+      data = {
+        ...raw,
+        grossEarnings,
+        netPayout,
+      };
+    } else {
+      const userDoc = await User.findById(req.user.id);
+      data = {
+        teacherId: req.user.id,
+        teacherName: req.user.name || '',
+        teacherLevel: userDoc?.teacherLevel || userDoc?.profile?.teacherLevel || 'Junior',
+        perClassRate: userDoc?.profile?.perClassRate || 0,
+        completedSessions: 0,
+        grossEarnings: 0,
+        totalPenalty: 0,
+        netPayout: 0,
+        deductions: {
+          noShow: { count: 0, amount: 0 },
+          late: { count: 0, amount: 0 },
+          lmc: { count: 0, amount: 0 },
+        },
+        sessions: [],
+      };
+    }
 
     res.status(200).json({
       success: true,

@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Classroom = require('../models/Classroom');
 const Session = require('../models/Session');
+const TeacherRateConfig = require('../models/TeacherRateConfig');
 
 // @desc    Get all pending teachers
 // @route   GET /api/admin/teachers/pending
@@ -295,6 +296,69 @@ const getTeacherWorkload = async (req, res) => {
   }
 };
 
+// @desc    Get teacher rate configuration matrix
+// @route   GET /api/admin/teacher-rates
+// @access  Private/Admin
+const getTeacherRateConfig = async (req, res) => {
+  try {
+    const config = await TeacherRateConfig.getConfig();
+    res.status(200).json({ success: true, data: config });
+  } catch (error) {
+    console.error('getTeacherRateConfig error:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Update teacher rate configuration matrix
+// @route   PUT /api/admin/teacher-rates
+// @access  Private/Admin
+const updateTeacherRateConfig = async (req, res) => {
+  try {
+    const { Junior, Senior, Master } = req.body;
+    let config = await TeacherRateConfig.findOne();
+    if (!config) {
+      config = new TeacherRateConfig();
+    }
+    if (Junior) config.Junior = { ...config.Junior, ...Junior };
+    if (Senior) config.Senior = { ...config.Senior, ...Senior };
+    if (Master) config.Master = { ...config.Master, ...Master };
+    await config.save();
+    res.status(200).json({ success: true, message: 'Payment matrix updated successfully', data: config });
+  } catch (error) {
+    console.error('updateTeacherRateConfig error:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Update a teacher's level and manually selected per-class rate
+// @route   PUT /api/admin/teachers/:id/rate-level
+// @access  Private/Admin
+const updateTeacherLevelAndRate = async (req, res) => {
+  try {
+    const { teacherLevel, perClassRate } = req.body;
+    const teacher = await User.findById(req.params.id);
+    if (!teacher || teacher.role !== 'teacher') {
+      return res.status(404).json({ success: false, message: 'Teacher not found' });
+    }
+
+    if (teacherLevel && ['Junior', 'Senior', 'Master'].includes(teacherLevel)) {
+      teacher.teacherLevel = teacherLevel;
+      if (teacher.profile) teacher.profile.teacherLevel = teacherLevel;
+    }
+
+    if (perClassRate !== undefined && typeof perClassRate === 'number') {
+      teacher.profile = teacher.profile || {};
+      teacher.profile.perClassRate = perClassRate;
+    }
+
+    await teacher.save();
+    res.status(200).json({ success: true, message: 'Teacher level and rate updated successfully', data: teacher });
+  } catch (error) {
+    console.error('updateTeacherLevelAndRate error:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
 module.exports = {
   getPendingTeachers,
   getAllClassrooms,
@@ -306,5 +370,8 @@ module.exports = {
   getSessionStats,
   getTeacherWorkload,
   updateTeacherRate,
+  getTeacherRateConfig,
+  updateTeacherRateConfig,
+  updateTeacherLevelAndRate,
 };
 
