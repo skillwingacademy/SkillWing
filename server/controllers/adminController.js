@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Classroom = require('../models/Classroom');
 const Session = require('../models/Session');
 const TeacherRateConfig = require('../models/TeacherRateConfig');
+const ChatContact = require('../models/ChatContact');
 
 // @desc    Get all pending teachers
 // @route   GET /api/admin/teachers/pending
@@ -428,6 +429,73 @@ const deleteStudent = async (req, res) => {
   }
 };
 
+// @desc    Assign or change instructor for a specific student's classroom
+// @route   PUT /api/admin/classrooms/:id/assign-teacher
+// @access  Private/Admin
+const assignTeacherToClassroom = async (req, res) => {
+  try {
+    const { teacherId } = req.body;
+
+    if (!teacherId) {
+      return res.status(400).json({ success: false, message: 'Teacher ID is required' });
+    }
+
+    const classroom = await Classroom.findById(req.params.id);
+    if (!classroom) {
+      return res.status(404).json({ success: false, message: 'Classroom not found' });
+    }
+
+    const teacher = await User.findById(teacherId);
+    if (!teacher || teacher.role !== 'teacher') {
+      return res.status(400).json({ success: false, message: 'Invalid teacher account' });
+    }
+    if (teacher.approvalStatus !== 'approved') {
+      return res.status(400).json({ success: false, message: 'Selected teacher is not approved yet' });
+    }
+
+    // Update classroom teacher
+    classroom.teacher = teacher._id;
+    if (classroom.status === 'pending_assignment') {
+      classroom.status = 'active';
+      classroom.startedAt = new Date();
+    }
+    await classroom.save();
+
+    // Create chat contacts between assigned teacher and enrolled students
+    if (Array.isArray(classroom.enrolledStudents)) {
+      for (const studentId of classroom.enrolledStudents) {
+        if (studentId) {
+          const sid = studentId._id || studentId;
+          await ChatContact.updateOne(
+            { userId: teacher._id, contactId: sid },
+            { $set: { userId: teacher._id, contactId: sid } },
+            { upsert: true }
+          );
+          await ChatContact.updateOne(
+            { userId: sid, contactId: teacher._id },
+            { $set: { userId: sid, contactId: teacher._id } },
+            { upsert: true }
+          );
+        }
+      }
+    }
+
+    const updatedClassroom = await Classroom.findById(classroom._id)
+      .populate('teacher', 'name email profile.avatarUrl')
+      .populate('course', 'title thumbnailImage')
+      .populate('enrolledStudents', 'name email profile.avatarUrl');
+
+    res.status(200).json({
+      success: true,
+      message: 'Instructor assigned to student classroom successfully',
+      data: updatedClassroom,
+    });
+  } catch (error) {
+    console.error('assignTeacherToClassroom error:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
 module.exports = {
   getPendingTeachers,
   getAllClassrooms,
@@ -445,5 +513,6 @@ module.exports = {
   archiveStudent,
   updateStudentInfo,
   deleteStudent,
+  assignTeacherToClassroom,
 };
 
