@@ -1,5 +1,6 @@
 const Course = require('../models/Course');
 const User = require('../models/User');
+const Classroom = require('../models/Classroom');
 const gcsService = require('../services/gcsService');
 
 // @desc    Get all active courses
@@ -342,6 +343,68 @@ const uploadThumbnail = async (req, res) => {
   }
 };
 
+// @desc    Delete a course safely (Admin only)
+// @route   DELETE /api/courses/:id
+// @access  Private (admin)
+const deleteCourse = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found',
+      });
+    }
+
+    // Check if there are classrooms for this course with enrolled students
+    const classrooms = await Classroom.find({ course: courseId });
+    const hasEnrolledClassrooms = classrooms.some(
+      (c) => Array.isArray(c.enrolledStudents) && c.enrolledStudents.length > 0
+    );
+
+    if (hasEnrolledClassrooms) {
+      return res.status(400).json({
+        success: false,
+        message: 'This course has enrolled students. Please remove or transfer all enrolled students before deleting this course.',
+      });
+    }
+
+    // Check if any user is enrolled in this course or has it as intendedCourse
+    const usersWithCourse = await User.find({
+      $or: [
+        { enrolledCourses: courseId },
+        { intendedCourse: courseId },
+      ],
+    });
+
+    if (usersWithCourse.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'This course has enrolled students. Please remove or transfer all enrolled students before deleting this course.',
+      });
+    }
+
+    // Remove any empty classrooms associated with this course
+    await Classroom.deleteMany({ course: courseId });
+
+    // Delete course from database
+    await Course.findByIdAndDelete(courseId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Course deleted successfully.',
+    });
+  } catch (error) {
+    console.error('DeleteCourse error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting course',
+    });
+  }
+};
+
 module.exports = {
   getAllCourses,
   getCourseById,
@@ -350,4 +413,5 @@ module.exports = {
   getTeacherCourses,
   getEnrolledCourses,
   uploadThumbnail,
+  deleteCourse,
 };
