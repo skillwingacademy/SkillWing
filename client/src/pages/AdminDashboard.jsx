@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
-  Check, X, ShieldAlert, AlertTriangle, BookOpen, MapPin, Phone, Calendar,
+  Check, X, ShieldAlert, BookOpen, MapPin, Phone, Calendar,
   PlusCircle, Pencil, LayoutGrid, Users, UserCheck, GraduationCap, Menu, ArrowLeft, Video,
   FileText, PlayCircle, Clock, DollarSign, Plus, CalendarPlus, CheckCircle2, XCircle, CalendarDays, MessageSquare, Award,
   Search, Filter, Trash2, Archive, RotateCcw, MoreVertical, User, Mail, PhoneCall
@@ -256,33 +256,6 @@ export default function AdminDashboard() {
       toast.error(err.response?.data?.message || 'Failed to assign instructor')
     } finally {
       setSavingTeacherAssignment((prev) => ({ ...prev, [classroomId]: false }))
-    }
-  }
-
-  // Delete Course States & Functions
-  const [deleteCourseModal, setDeleteCourseModal] = useState(false)
-  const [courseToDelete, setCourseToDelete] = useState(null)
-  const [deletingCourseLoading, setDeletingCourseLoading] = useState(false)
-
-  const openDeleteCourseModal = (course) => {
-    setCourseToDelete(course)
-    setDeleteCourseModal(true)
-  }
-
-  const handleDeleteCourseConfirm = async () => {
-    const courseId = courseToDelete?._id || courseToDelete?.id
-    if (!courseId) return
-    setDeletingCourseLoading(true)
-    try {
-      const res = await api.delete(`/courses/${courseId}`)
-      toast.success(res.data?.message || 'Course deleted successfully.')
-      setDeleteCourseModal(false)
-      setCourseToDelete(null)
-      await loadData()
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete course')
-    } finally {
-      setDeletingCourseLoading(false)
     }
   }
 
@@ -747,29 +720,15 @@ export default function AdminDashboard() {
                                 <span className="text-sm font-bold text-blue-600">
                                   {c.currency === 'USD' ? '$' : '₹'}{c.price > 0 ? c.price : 'Free'}
                                 </span>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => openEdit(c)}
-                                    className="text-xs !text-black"
-                                  >
-                                    <Pencil size={14} className="mr-1 !text-black" />
-                                    Edit
-                                  </Button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault()
-                                      e.stopPropagation()
-                                      openDeleteCourseModal(c)
-                                    }}
-                                    className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-semibold text-xs transition-colors flex items-center border border-red-200 shadow-sm cursor-pointer"
-                                  >
-                                    <Trash2 size={14} className="mr-1" />
-                                    Delete
-                                  </button>
-                                </div>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => openEdit(c)}
+                                  className="text-xs !text-black"
+                                >
+                                  <Pencil size={14} className="mr-1 !text-black" />
+                                  Edit
+                                </Button>
                               </div>
                             </div>
                           </div>
@@ -2469,51 +2428,6 @@ function AdminClassroomDeepDive({ id, onBack }) {
           </div>
           <Button type="submit" variant="primary" fullWidth loading={rescheduleLoading}>Confirm Reschedule</Button>
         </form>
-      </Modal>
-
-      {/* Delete Course Confirmation Modal */}
-      <Modal
-        isOpen={deleteCourseModal}
-        onClose={() => {
-          if (!deletingCourseLoading) {
-            setDeleteCourseModal(false)
-            setCourseToDelete(null)
-          }
-        }}
-        title="Delete Course"
-      >
-        {courseToDelete && (
-          <div className="space-y-4 pt-1">
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
-              <AlertTriangle size={24} />
-            </div>
-            <p className="text-sm text-slate-700 text-center">
-              Are you sure you want to delete <strong className="text-slate-900 font-bold">"{courseToDelete.title}"</strong>? This action cannot be undone.
-            </p>
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                disabled={deletingCourseLoading}
-                onClick={() => {
-                  setDeleteCourseModal(false)
-                  setCourseToDelete(null)
-                }}
-                className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={deletingCourseLoading}
-                onClick={handleDeleteCourseConfirm}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm cursor-pointer"
-              >
-                {deletingCourseLoading ? 'Deleting...' : 'Delete Course'}
-              </button>
-            </div>
-          </div>
-        )}
       </Modal>
     </div>
   );

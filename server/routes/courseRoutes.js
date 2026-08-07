@@ -9,7 +9,6 @@ const {
   getTeacherCourses,
   getEnrolledCourses,
   uploadThumbnail,
-  deleteCourse,
 } = require('../controllers/courseController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/rbacMiddleware');
@@ -49,8 +48,5 @@ router.post('/', protect, authorize('admin'), createCourse);
 
 // PUT /api/courses/:id — update course (admin only)
 router.put('/:id', protect, authorize('admin'), updateCourse);
-
-// DELETE /api/courses/:id — delete course (admin only)
-router.delete('/:id', protect, authorize('admin'), deleteCourse);
 
 module.exports = router;

@@ -56,12 +56,12 @@ async function getContactIds(user) {
   }
   // Students and teachers: lookup adjacency table + always include admin
   const contacts = await ChatContact.find({ userId: user._id }).select('contactId').lean();
-  const contactIds = contacts.map((c) => c.contactId.toString());
+  const contactIds = contacts.map((c) => (c.contactId ? c.contactId.toString() : null)).filter(Boolean);
 
   // Always add admin to contact list
   const admins = await User.find({ role: 'admin' }).select('_id').lean();
   admins.forEach((a) => {
-    if (!contactIds.includes(a._id.toString())) contactIds.push(a._id.toString());
+    if (a && a._id && !contactIds.includes(a._id.toString())) contactIds.push(a._id.toString());
   });
   return contactIds;
 }
@@ -95,12 +95,12 @@ exports.getContacts = async (req, res) => {
         .populate('participants', 'name email role profile.avatarUrl avatar')
         .lean();
       const contacts = convos
-        .map((c) => c.participants.find((p) => p._id.toString() !== me._id.toString()))
+        .map((c) => (c.participants || []).find((p) => p && p._id && p._id.toString() !== me._id.toString()))
         .filter(Boolean);
       // dedupe
       const seen = new Set();
       const unique = contacts.filter((c) => {
-        if (seen.has(c._id.toString())) return false;
+        if (!c || !c._id || seen.has(c._id.toString())) return false;
         seen.add(c._id.toString());
         return true;
       });
@@ -121,7 +121,7 @@ exports.getContacts = async (req, res) => {
       .select('name email role profile.avatarUrl avatar')
       .lean();
     admins.forEach((a) => {
-      if (!contacts.find((c) => c._id.toString() === a._id.toString())) {
+      if (a && a._id && !contacts.find((c) => c && c._id && c._id.toString() === a._id.toString())) {
         contacts.push(a);
       }
     });
