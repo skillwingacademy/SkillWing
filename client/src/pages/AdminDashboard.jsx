@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
-  Check, X, ShieldAlert, BookOpen, MapPin, Phone, Calendar,
+  Check, X, ShieldAlert, AlertTriangle, BookOpen, MapPin, Phone, Calendar,
   PlusCircle, Pencil, LayoutGrid, Users, UserCheck, GraduationCap, Menu, ArrowLeft, Video,
   FileText, PlayCircle, Clock, DollarSign, Plus, CalendarPlus, CheckCircle2, XCircle, CalendarDays, MessageSquare, Award,
   Search, Filter, Trash2, Archive, RotateCcw, MoreVertical, User, Mail, PhoneCall
@@ -270,10 +270,11 @@ export default function AdminDashboard() {
   }
 
   const handleDeleteCourseConfirm = async () => {
-    if (!courseToDelete) return
+    const courseId = courseToDelete?._id || courseToDelete?.id
+    if (!courseId) return
     setDeletingCourseLoading(true)
     try {
-      const res = await api.delete(`/courses/${courseToDelete._id}`)
+      const res = await api.delete(`/courses/${courseId}`)
       toast.success(res.data?.message || 'Course deleted successfully.')
       setDeleteCourseModal(false)
       setCourseToDelete(null)
@@ -757,8 +758,13 @@ export default function AdminDashboard() {
                                     Edit
                                   </Button>
                                   <button
-                                    onClick={() => openDeleteCourseModal(c)}
-                                    className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-semibold text-xs transition-colors flex items-center border border-red-200 shadow-sm"
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      openDeleteCourseModal(c)
+                                    }}
+                                    className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-semibold text-xs transition-colors flex items-center border border-red-200 shadow-sm cursor-pointer"
                                   >
                                     <Trash2 size={14} className="mr-1" />
                                     Delete
@@ -2466,21 +2472,28 @@ function AdminClassroomDeepDive({ id, onBack }) {
       </Modal>
 
       {/* Delete Course Confirmation Modal */}
-      {deleteCourseModal && courseToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative animate-scale-up">
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4 mx-auto">
+      <Modal
+        isOpen={deleteCourseModal}
+        onClose={() => {
+          if (!deletingCourseLoading) {
+            setDeleteCourseModal(false)
+            setCourseToDelete(null)
+          }
+        }}
+        title="Delete Course"
+      >
+        {courseToDelete && (
+          <div className="space-y-4 pt-1">
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
               <AlertTriangle size={24} />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">
-              Delete Course?
-            </h3>
-            <p className="text-sm text-slate-600 text-center mb-6">
-              Are you sure you want to delete <strong className="text-slate-900">"{courseToDelete.title}"</strong>? This action cannot be undone.
+            <p className="text-sm text-slate-700 text-center">
+              Are you sure you want to delete <strong className="text-slate-900 font-bold">"{courseToDelete.title}"</strong>? This action cannot be undone.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
               <button
+                type="button"
                 disabled={deletingCourseLoading}
                 onClick={() => {
                   setDeleteCourseModal(false)
@@ -2491,16 +2504,17 @@ function AdminClassroomDeepDive({ id, onBack }) {
                 Cancel
               </button>
               <button
+                type="button"
                 disabled={deletingCourseLoading}
                 onClick={handleDeleteCourseConfirm}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm cursor-pointer"
               >
                 {deletingCourseLoading ? 'Deleting...' : 'Delete Course'}
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }
