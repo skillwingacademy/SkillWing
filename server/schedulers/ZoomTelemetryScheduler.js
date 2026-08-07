@@ -8,7 +8,7 @@ const { pollAndReconcileSession } = require('../services/ZoomTelemetryService');
  * Runs every 5 minutes and finds completed sessions that:
  *  1. Have a zoomMeetingId (Zoom link was generated)
  *  2. Ended 10+ minutes ago (data availability buffer)
- *  3. Haven't been polled yet (no zoomTelemetry.polledAt)
+ *  3. Haven't been successfully polled yet (or a transient failure needs retry)
  *
  * For each matching session, polls Zoom's Report API for participant
  * join/leave times and reconciles the session's financials.
@@ -36,7 +36,10 @@ async function runTelemetryPoll() {
       status: 'completed',
       zoomMeetingId: { $ne: '' },
       endTime: { $lte: tenMinutesAgo },
-      'zoomTelemetry.polledAt': { $exists: false },
+      $or: [
+        { 'zoomTelemetry.polledAt': { $exists: false } },
+        { 'zoomTelemetry.pollStatus': 'retry' },
+      ],
     })
       .select('_id zoomMeetingId sessionNumber title')
       .limit(20); // Process max 20 per cycle to avoid Zoom rate limits
@@ -81,8 +84,7 @@ function startZoomTelemetryScheduler() {
       console.warn('[ZoomScheduler] node-cron not available. Zoom telemetry polling disabled.');
       return;
     }
-    // Changed 5 to 30 for now
-    cron.schedule('*/30 * * * *', runTelemetryPoll, {
+    cron.schedule('*/5 * * * *', runTelemetryPoll, {
       scheduled: true,
       timezone: 'Asia/Kolkata',
     });

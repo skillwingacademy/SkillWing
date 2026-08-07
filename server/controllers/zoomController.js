@@ -22,7 +22,7 @@ const generateZoomLink = async (req, res) => {
     // Ownership check: teacher must own the classroom
     if (
       req.user.role === 'teacher' &&
-      session.classroom.teacher.toString() !== req.user.id
+      (!session.classroom.teacher || session.classroom.teacher.toString() !== req.user.id)
     ) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
@@ -46,13 +46,19 @@ const generateZoomLink = async (req, res) => {
         message: 'Meeting links can only be generated 15 minutes prior to class start time.',
       });
     }
+    if (now >= new Date(session.endTime)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot generate a meeting link after the session has ended.',
+      });
+    }
 
-    // If a link already exists, return it without creating a new meeting
-    if (session.googleMeetLink) {
+    // A generated Zoom meeting is idempotent; never create a duplicate.
+    if (session.zoomMeetingId && session.zoomJoinUrl) {
       return res.status(200).json({
         success: true,
-        data: { joinUrl: session.googleMeetLink },
-        message: 'Meeting link already exists for this session.',
+        data: { joinUrl: session.zoomJoinUrl, meetingId: session.zoomMeetingId },
+        message: 'Zoom meeting already exists for this session.',
       });
     }
 
@@ -67,14 +73,12 @@ const generateZoomLink = async (req, res) => {
       durationMinutes
     );
 
-    // ── Update ONLY the meeting link fields (zero disruption) ──
-    session.googleMeetLink = zoomResult.joinUrl;
+    // Keep generated Zoom links distinct from legacy manually entered links.
+    session.zoomJoinUrl = zoomResult.joinUrl;
     session.zoomMeetingId = String(zoomResult.meetingId);
+    session.zoomStartUrl = zoomResult.startUrl;
     session.joinEnabled = true;
 
-    // Use markModified to ensure Mongoose detects the change
-    session.markModified('googleMeetLink');
-    session.markModified('joinEnabled');
     await session.save();
 
     res.status(200).json({
@@ -102,4 +106,31 @@ const generateZoomLink = async (req, res) => {
   }
 };
 
-module.exports = { generateZoomLink };
+/**
+ * @desc    Return the Zoom host URL to the owning teacher or an admin.
+ * @route   POST /api/classrooms/sessions/:id/zoom-host-link
+ */
+const getZoomHostLink = async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id)
+      .select('+zoomStartUrl')
+      .populate('classroom');
+
+    if (!session || !session.classroom) {
+      return res.status(404).json({ success: false, message: 'Session or classroom not found' });
+    }
+    if (req.user.role === 'teacher' && (!session.classroom.teacher || session.classroom.teacher.toString() !== req.user.id)) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    if (!session.zoomMeetingId || !session.zoomStartUrl) {
+      return res.status(404).json({ success: false, message: 'No Zoom host link is available for this session' });
+    }
+
+    return res.status(200).json({ success: true, data: { startUrl: session.zoomStartUrl } });
+  } catch (error) {
+    console.error('getZoomHostLink error:', error.message);
+    return res.status(500).json({ success: false, message: 'Server error retrieving Zoom host link' });
+  }
+};
+
+module.exports = { generateZoomLink, getZoomHostLink };

@@ -3,6 +3,23 @@ const Classroom = require('../models/Classroom');
 const Session = require('../models/Session');
 const User = require('../models/User');
 const ChatContact = require('../models/ChatContact');
+const { createMeeting } = require('../services/ZoomService');
+
+// Pre-generates a Zoom meeting for a session (idempotent, never crashes scheduling)
+async function attachZoomLink(session) {
+  try {
+    if (session.zoomJoinUrl && session.zoomMeetingId) return;
+    const durationMinutes = Math.round((new Date(session.endTime) - new Date(session.startTime)) / 60000) || 60;
+    const result = await createMeeting(session.title || `Session ${session.sessionNumber}`, session.startTime, durationMinutes);
+    session.zoomJoinUrl = result.joinUrl;
+    session.zoomMeetingId = String(result.meetingId);
+    session.zoomStartUrl = result.startUrl;
+    session.joinEnabled = true;
+    await session.save();
+  } catch (err) {
+    console.error(`[Zoom] Link generation failed for session ${session._id}:`, err.message);
+  }
+}
 
 // @desc    Assign instructor & bulk-create sessions for a pending classroom
 // @route   POST /api/admin/classrooms/:id/schedule-batch
@@ -78,6 +95,9 @@ const scheduleBatch = async (req, res) => {
     });
 
     const sessions = await Session.insertMany(sessionDocs);
+
+    // Pre-generate a Zoom meeting link for every scheduled session (no manual step needed)
+    await Promise.all(sessions.map(attachZoomLink));
 
     // ── Populate ChatContact adjacency table ────────────────────────────────
     // Every student in this classroom can now message the teacher, and vice versa.
@@ -349,6 +369,8 @@ const addSingleSession = async (req, res) => {
 
     classroom.totalSessions = (classroom.totalSessions || 0) + 1;
     await classroom.save();
+
+    await attachZoomLink(newSession);
 
     res.status(201).json({
       success: true,

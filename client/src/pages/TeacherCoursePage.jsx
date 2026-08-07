@@ -273,7 +273,7 @@ export default function TeacherCoursePage() {
                         [session._id]: e.target.value,
                       }))
                     }
-                    placeholder="Paste Google Meet / Zoom link"
+                    placeholder="Paste Zoom link"
                     className="input-dark pl-9 py-2 text-sm"
                   />
                 </div>

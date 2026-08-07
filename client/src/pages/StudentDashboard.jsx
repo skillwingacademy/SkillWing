@@ -13,6 +13,11 @@ import {
 export default function StudentDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
+
+  const canJoinNow = (s) =>
+    Date.now() >= new Date(s.startTime).getTime() - 5 * 60 * 1000 &&
+    Date.now() <= new Date(s.endTime).getTime()
+
   const [tab, setTab] = useState('overview')
   const [searchParams, setSearchParams] = useSearchParams()
   const activeClassroomId = searchParams.get('classroomId')
@@ -241,8 +246,8 @@ export default function StudentDashboard() {
                           </div>
                         </div>
                         <div className="shrink-0">
-                          {upcoming.googleMeetLink && upcoming.joinEnabled ? (
-                            <Button size="md" onClick={() => window.open(upcoming.googleMeetLink, '_blank')} className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent">
+                          {upcoming.zoomJoinUrl && canJoinNow(upcoming) ? (
+                            <Button size="md" onClick={() => window.open(upcoming.zoomJoinUrl, '_blank')} className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent">
                               <Video size={16} /> Join Meeting
                             </Button>
                           ) : (
@@ -401,8 +406,8 @@ export default function StudentDashboard() {
                           <p className="text-sm text-slate-500">{s.classroom?.course?.title}</p>
                           <p className="text-xs text-slate-400 mt-1">{fmtTime(s.startTime)} – {fmtTime(s.endTime)}</p>
                         </div>
-                        {s.googleMeetLink && s.joinEnabled ? (
-                          <Button size="sm" onClick={() => window.open(s.googleMeetLink, '_blank')} className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent shrink-0">
+                        {s.zoomJoinUrl && canJoinNow(s) ? (
+                          <Button size="sm" onClick={() => window.open(s.zoomJoinUrl, '_blank')} className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent shrink-0">
                             <Video size={14} /> Join
                           </Button>
                         ) : (
@@ -741,16 +746,16 @@ function ClassroomDeepDive({ id, onBack }) {
                   
                   <div className="flex items-center gap-3 shrink-0 ml-16 md:ml-0 flex-wrap">
                     {s.status !== 'completed' && s.status !== 'cancelled' && (
-                      (s.googleMeetLink || s.meetLink) ? (
+                      (s.zoomJoinUrl || s.meetLink) && canJoinNow(s) ? (
                         <button
-                          onClick={() => window.open(s.googleMeetLink || s.meetLink, '_blank')}
+                          onClick={() => window.open(s.zoomJoinUrl || s.meetLink, '_blank')}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors shadow-sm"
                         >
                           <Video size={14} /> Join
                         </button>
                       ) : (
                         <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 text-xs font-medium">
-                          <Video size={14} /> Link not available yet
+                          <Video size={14} /> Joins 5 min before
                         </span>
                       )
                     )}

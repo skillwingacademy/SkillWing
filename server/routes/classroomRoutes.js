@@ -21,7 +21,7 @@ const {
   uploadFile,
   deleteFile,
 } = require('../controllers/sessionFileController');
-const { generateZoomLink } = require('../controllers/zoomController');
+const { generateZoomLink, getZoomHostLink } = require('../controllers/zoomController');
 
 // Multer memoryStorage for session file uploads (max 10MB)
 const upload = multer({
@@ -61,10 +61,10 @@ router.patch('/sessions/:id/cancel', protect, authorize('admin'), cancelSession)
 router.patch('/sessions/:id/reschedule', protect, authorize('admin'), rescheduleSession);
 router.patch('/sessions/:id/attendance', protect, authorize('teacher', 'admin'), markAttendance);
 router.post('/sessions/:id/generate-zoom-link', protect, authorize('teacher', 'admin'), generateZoomLink);
+router.post('/sessions/:id/zoom-host-link', protect, authorize('teacher', 'admin'), getZoomHostLink);
 
 // ── Session file routes ─────────────────────────────────
 router.post('/sessions/:id/files', protect, authorize('teacher', 'admin'), upload.single('file'), uploadFile);
 router.delete('/sessions/:id/files', protect, authorize('teacher', 'admin'), deleteFile);
 
 module.exports = router;
-

@@ -35,13 +35,19 @@ const sessionSchema = new mongoose.Schema(
       type: String,
       default: 'Asia/Kolkata',
     },
-    googleMeetLink: {
+    zoomJoinUrl: {
       type: String,
       default: '',
     },
     zoomMeetingId: {
       type: String,
       default: '',
+    },
+    // A Zoom start URL grants host access. Do not include it in normal session reads.
+    zoomStartUrl: {
+      type: String,
+      default: '',
+      select: false,
     },
     meetingStatus: {
       type: String,
@@ -120,6 +126,17 @@ const sessionSchema = new mongoose.Schema(
       studentLeaveTime: { type: Date },
       totalParticipants: { type: Number, default: 0 },
       polledAt: { type: Date },
+      lastAttemptAt: { type: Date },
+      pollStatus: {
+        type: String,
+        enum: ['success', 'retry', 'unsupported'],
+      },
+      lastError: { type: String },
+      studentParticipants: [{
+        studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        joinTime: { type: Date },
+        leaveTime: { type: Date },
+      }],
       rawParticipants: { type: mongoose.Schema.Types.Mixed },
     },
     // Telemetry

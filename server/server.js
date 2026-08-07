@@ -54,16 +54,26 @@ app.use(helmet());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Rate limiting
-const limiter = rateLimit({
+// Rate limiting: protect authentication aggressively without throttling normal dashboard use.
+const apiRateLimitMax = Number.parseInt(process.env.RATE_LIMIT_MAX, 10) || 500;
+const authRateLimitMax = Number.parseInt(process.env.RATE_LIMIT_AUTH_MAX, 10) || 10;
+const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: apiRateLimitMax,
   message: {
     success: false,
     message: 'Too many requests, please try again later',
   },
 });
-app.use('/api', limiter);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: authRateLimitMax,
+  skipSuccessfulRequests: true,
+  message: {
+    success: false,
+    message: 'Too many login attempts, please try again in 15 minutes',
+  },
+});
 
 // ──────────────────────────────────────────────
 // Routes
@@ -82,7 +92,8 @@ const configRoutes = require('./routes/configRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const demoRoutes = require('./routes/demoRoutes');
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api', apiLimiter);
 app.use('/api/courses', courseRoutes);
 app.use('/api/sessions', classSessionRoutes);   // legacy — kept for backward compat
 app.use('/api/payments', paymentRoutes);

@@ -110,7 +110,7 @@ const updateSession = async (req, res) => {
 
     const simpleFields = [
       'title', 'description', 'scheduledDate', 'startTime', 'endTime',
-      'timezone', 'googleMeetLink', 'joinEnabled', 'recordingLink',
+      'timezone', 'joinEnabled', 'recordingLink',
     ];
 
     simpleFields.forEach((field) => {
@@ -145,9 +145,6 @@ const updateSession = async (req, res) => {
     }
 
     // If meet link is added/updated, enable join
-    if (req.body.googleMeetLink && req.body.joinEnabled === undefined) {
-      session.joinEnabled = true;
-    }
 
     if (req.body.homework !== undefined) session.markModified('homework');
     if (req.body.teacherNotes !== undefined) session.markModified('teacherNotes');
@@ -265,7 +262,7 @@ const rescheduleSession = async (req, res) => {
     );
     if (error) return res.status(status).json({ success: false, message: error });
 
-    const { scheduledDate, startTime, endTime, googleMeetLink } = req.body;
+    const { scheduledDate, startTime, endTime } = req.body;
 
     if (!scheduledDate || !startTime || !endTime) {
       return res.status(400).json({
@@ -279,10 +276,6 @@ const rescheduleSession = async (req, res) => {
     session.startTime = new Date(startTime);
     session.endTime = new Date(endTime);
     
-    if (googleMeetLink !== undefined) {
-      session.googleMeetLink = googleMeetLink;
-      session.joinEnabled = !!googleMeetLink;
-    }
 
     // Reset meeting and attendance status in case it was modified
     session.meetingStatus = 'pending';

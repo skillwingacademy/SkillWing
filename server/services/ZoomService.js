@@ -61,8 +61,9 @@ async function createMeeting(topic, startTime, duration = 60) {
     duration,
     timezone: 'Asia/Kolkata',
     settings: {
+      // Paid classes should not be accessible until the authenticated host starts them.
       join_before_host: true,
-      waiting_room: false,
+      waiting_room: true,
       auto_recording: 'none',
       mute_upon_entry: true,
       approval_type: 2, // No registration required

@@ -47,6 +47,10 @@ const fmtFileSize = (bytes) =>
     ? `${(bytes / 1024).toFixed(0)} KB`
     : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
+const canJoinNow = (s) =>
+  Date.now() >= new Date(s.startTime).getTime() - 5 * 60 * 1000 &&
+  Date.now() <= new Date(s.endTime).getTime();
+
 const statusConfig = {
   completed: {
     label: 'Completed',
@@ -525,9 +529,9 @@ export default function SessionDetailPage() {
               </h3>
             </div>
             <div className="p-5">
-              {session.googleMeetLink && isActiveSession ? (
+              {session.zoomJoinUrl && isActiveSession && canJoinNow(session) ? (
                 <a
-                  href={session.googleMeetLink}
+                  href={session.zoomJoinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"
@@ -538,7 +542,7 @@ export default function SessionDetailPage() {
                 </a>
               ) : (
                 <p className="text-sm text-slate-400 italic">
-                  {session.googleMeetLink
+                  {session.zoomJoinUrl
                     ? 'Session has ended.'
                     : 'No meeting link available.'}
                 </p>

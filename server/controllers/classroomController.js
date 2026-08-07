@@ -1,5 +1,6 @@
 const Classroom = require('../models/Classroom');
 const Session = require('../models/Session');
+const { createMeeting } = require('../services/ZoomService');
 const { updateClassroomAttendanceStats } = require('../services/ClassroomService');
 
 // @desc    Get all classrooms assigned to the authenticated teacher
@@ -91,7 +92,7 @@ const createSession = async (req, res) => {
       });
     }
 
-    const { title, description, scheduledDate, startTime, endTime, timezone, googleMeetLink } = req.body;
+    const { title, description, scheduledDate, startTime, endTime, timezone } = req.body;
 
     if (!title || !scheduledDate || !startTime || !endTime) {
       return res.status(400).json({
@@ -146,13 +147,25 @@ const createSession = async (req, res) => {
       startTime: new Date(startTime),
       endTime: new Date(endTime),
       timezone: timezone || 'Asia/Kolkata',
-      googleMeetLink: googleMeetLink || '',
-      joinEnabled: !!googleMeetLink,
+      joinEnabled: false,
       status: 'scheduled',
       meetingStatus: 'pending',
       createdBy: req.user.id,
       studentAttendance,
     });
+
+    // Pre-generate a Zoom meeting link so no manual "generate" step is ever needed
+    try {
+      const durationMinutes = Math.round((new Date(endTime) - new Date(startTime)) / 60000) || 60;
+      const result = await createMeeting(title, new Date(startTime), durationMinutes);
+      session.zoomJoinUrl = result.joinUrl;
+      session.zoomMeetingId = String(result.meetingId);
+      session.zoomStartUrl = result.startUrl;
+      session.joinEnabled = true;
+      await session.save();
+    } catch (zoomErr) {
+      console.error(`[Zoom] Link generation failed for session ${session._id}:`, zoomErr.message);
+    }
 
     res.status(201).json({ success: true, data: session });
   } catch (error) {

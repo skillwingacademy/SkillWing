@@ -49,7 +49,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 page-enter relative bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 page-enter relative bg-slate-50">
       {/* Background orbs */}
       <div className="orb orb-primary w-[400px] h-[400px] -top-20 -left-20 animate-float-slow" />
       <div className="orb orb-secondary w-[300px] h-[300px] -bottom-10 -right-16 animate-float" />

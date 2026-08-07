@@ -8,9 +8,9 @@ import Modal from '../components/ui/Modal'
 import toast from 'react-hot-toast'
 import {
   GraduationCap, Calendar, CalendarDays, BookOpen, Clock, ShieldAlert,
-  Users, Plus, Edit2, CheckCircle2, ExternalLink, Video,
+  Users, Plus, CheckCircle2, ExternalLink, Video,
   LayoutDashboard, History, ArrowLeft, User, XCircle, Menu, X,
-  FileText, PlayCircle, DollarSign, Loader2, MessageSquare
+  FileText, PlayCircle, DollarSign, MessageSquare
 } from 'lucide-react'
 
 export default function TeacherDashboard() {
@@ -38,12 +38,6 @@ export default function TeacherDashboard() {
   const [earningsMonth, setEarningsMonth] = useState(new Date().getMonth() + 1)
   const [earningsYear, setEarningsYear] = useState(new Date().getFullYear())
 
-  // Edit modal
-  const [editModal, setEditModal] = useState(false)
-  const [editSession, setEditSession] = useState(null)
-  const [editForm, setEditForm] = useState({ title: '', date: '', startTime: '', endTime: '', meetLink: '', homework: '', teacherNotes: '' })
-  const [editLoading, setEditLoading] = useState(false)
-
   // Cancel modal
   const [cancelModal, setCancelModal] = useState(false)
   const [cancelSessionItem, setCancelSessionItem] = useState(null)
@@ -51,19 +45,32 @@ export default function TeacherDashboard() {
   const [cancelLoading, setCancelLoading] = useState(false)
 
   const [completingId, setCompletingId] = useState(null)
-  const [generatingZoomId, setGeneratingZoomId] = useState(null)
 
-  const generateZoomLink = async (sessionId) => {
-    setGeneratingZoomId(sessionId)
+  const canJoinNow = (s) =>
+    Date.now() >= new Date(s.startTime).getTime() - 5 * 60 * 1000 &&
+    Date.now() <= new Date(s.endTime).getTime()
+
+  const launchMeeting = async (session) => {
+    const meetingUrl = session.zoomJoinUrl
+    if (!meetingUrl) return
+
+    // Open synchronously so browsers do not block the host launch after the API request.
+    const popup = window.open('', '_blank')
     try {
-      const res = await api.post(`/classrooms/sessions/${sessionId}/generate-zoom-link`)
-      toast.success(res.data.message || 'Zoom link generated!')
-      // Refresh data to pick up the new link
-      setLoading(true); fetchData()
+      if (session.zoomMeetingId) {
+        const res = await api.post(`/classrooms/sessions/${session._id}/zoom-host-link`)
+        const startUrl = res.data?.data?.startUrl
+        if (!startUrl) throw new Error('Zoom host URL was not returned')
+        if (popup) popup.location.href = startUrl
+        else window.location.assign(startUrl)
+      } else if (popup) {
+        popup.location.href = meetingUrl
+      } else {
+        window.location.assign(meetingUrl)
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to generate Zoom link')
-    } finally {
-      setGeneratingZoomId(null)
+      if (popup) popup.close()
+      toast.error(err.response?.data?.message || 'Failed to launch the Zoom host meeting')
     }
   }
 
@@ -146,36 +153,6 @@ export default function TeacherDashboard() {
 
 
   // ── Edit handlers ──
-  const openEditModal = (session) => {
-    setEditSession(session)
-    const dateStr = new Date(session.scheduledDate).toISOString().split('T')[0]
-    setEditForm({
-      title: session.title || '', date: dateStr,
-      startTime: new Date(session.startTime).toTimeString().slice(0, 5),
-      endTime: new Date(session.endTime).toTimeString().slice(0, 5),
-      meetLink: session.googleMeetLink || '', homework: session.homework || '', teacherNotes: session.teacherNotes || '',
-    })
-    setEditModal(true)
-  }
-
-  const handleEdit = async (e) => {
-    e.preventDefault()
-    setEditLoading(true)
-    try {
-      await api.put(`/classrooms/sessions/${editSession._id}`, {
-        googleMeetLink: editForm.meetLink, 
-        homework: editForm.homework, 
-        teacherNotes: editForm.teacherNotes,
-      })
-      toast.success('Session updated!')
-      setEditModal(false)
-      window.dispatchEvent(new Event('refreshClassroomDetails'))
-      setLoading(true); fetchData()
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update')
-    } finally { setEditLoading(false) }
-  }
-
   const handleComplete = async (sessionId) => {
     setCompletingId(sessionId)
     try {
@@ -317,7 +294,7 @@ export default function TeacherDashboard() {
           {/* Main Content */}
           <main className="flex-1 min-w-0">
             {activeClassroomId ? (
-              <TeacherClassroomDeepDive id={activeClassroomId} onBack={() => setActiveClassroomId(null)} openEditModal={openEditModal} openCancelModal={openCancelModal} handleComplete={handleComplete} completingId={completingId} generateZoomLink={generateZoomLink} generatingZoomId={generatingZoomId} />
+              <TeacherClassroomDeepDive id={activeClassroomId} onBack={() => setActiveClassroomId(null)} openCancelModal={openCancelModal} handleComplete={handleComplete} completingId={completingId} canJoinNow={canJoinNow} launchMeeting={launchMeeting} />
             ) : (
               <>
                 {/* ── OVERVIEW TAB ───────────────── */}
@@ -350,7 +327,7 @@ export default function TeacherDashboard() {
                     </h2>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {todaySessions.slice(0, 4).map((s) => (
-                        <SessionActionCard key={s._id} s={s} fmtTime={fmtTime} openEditModal={openEditModal} openCancelModal={openCancelModal} handleComplete={handleComplete} completingId={completingId} generateZoomLink={generateZoomLink} generatingZoomId={generatingZoomId} />
+                        <SessionActionCard key={s._id} s={s} fmtTime={fmtTime} openCancelModal={openCancelModal} handleComplete={handleComplete} completingId={completingId} canJoinNow={canJoinNow} launchMeeting={launchMeeting} />
                       ))}
                     </div>
                   </div>
@@ -384,7 +361,7 @@ export default function TeacherDashboard() {
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {todaySessions.map((s) => (
-                      <SessionActionCard key={s._id} s={s} fmtTime={fmtTime} openEditModal={openEditModal} openCancelModal={openCancelModal} handleComplete={handleComplete} completingId={completingId} generateZoomLink={generateZoomLink} generatingZoomId={generatingZoomId} />
+                      <SessionActionCard key={s._id} s={s} fmtTime={fmtTime} openCancelModal={openCancelModal} handleComplete={handleComplete} completingId={completingId} canJoinNow={canJoinNow} launchMeeting={launchMeeting} />
                     ))}
                   </div>
                 )}
@@ -682,21 +659,6 @@ export default function TeacherDashboard() {
       </div>
 
 
-      {/* ── Add Meeting Link Modal ────────────────── */}
-      <Modal isOpen={editModal} onClose={() => setEditModal(false)} title="Upload Meeting Link">
-        <form onSubmit={handleEdit} className="space-y-4">
-          <div className="bg-white/10 p-4 rounded-xl mb-4">
-            <p className="text-white text-sm font-medium">Session: {editSession?.title}</p>
-            <p className="text-white/70 text-xs mt-1">Date: {editSession?.scheduledDate && new Date(editSession.scheduledDate).toLocaleDateString()}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-white mb-1">Google Meet Link</label>
-            <input type="url" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white/80" placeholder="https://meet.google.com/..." value={editForm.meetLink} onChange={(e) => setEditForm({ ...editForm, meetLink: e.target.value })} />
-          </div>
-          <Button type="submit" fullWidth loading={editLoading}>Save Changes</Button>
-        </form>
-      </Modal>
-
       {/* ── Cancel Session Modal ──────────────── */}
       <Modal isOpen={cancelModal} onClose={() => setCancelModal(false)} title="Cancel Session">
         <form onSubmit={handleCancel} className="space-y-4">
@@ -718,9 +680,10 @@ export default function TeacherDashboard() {
 }
 
 /* ── Session Action Card (reusable) ── */
-function SessionActionCard({ s, fmtTime, openEditModal, openCancelModal, handleComplete, completingId, generateZoomLink, generatingZoomId }) {
+function SessionActionCard({ s, fmtTime, openCancelModal, handleComplete, completingId, canJoinNow, launchMeeting }) {
   const students = s._classroom?.enrolledStudents || [];
   const firstStudent = students[0];
+  const meetingLink = s.zoomJoinUrl;
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
       <div className="flex items-start justify-between mb-3">
@@ -749,36 +712,24 @@ function SessionActionCard({ s, fmtTime, openEditModal, openCancelModal, handleC
       <p className="font-medium text-slate-800 mb-1">{s.title}</p>
       <p className="text-sm text-slate-500 mb-3 flex items-center gap-1"><Clock size={14} /> {fmtTime(s.startTime)} – {fmtTime(s.endTime)}</p>
       <div className="flex items-center justify-between">
-        {s.googleMeetLink ? (
-          <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1"><Video size={12} /> Link Ready</span>
-        ) : (() => {
-          const minutesBefore = (new Date(s.startTime).getTime() - Date.now()) / (1000 * 60);
-          const canGenerate = minutesBefore <= 15;
-          return canGenerate ? (
-            <button
-              onClick={() => generateZoomLink(s._id)}
-              disabled={generatingZoomId === s._id}
-              className="cursor-pointer text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60"
-            >
-              {generatingZoomId === s._id ? <Loader2 size={12} className="animate-spin" /> : <Video size={12} />}
-              {generatingZoomId === s._id ? 'Generating...' : 'Generate Zoom Link'}
-            </button>
-          ) : (
-            <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium cursor-default" title="Link generation unlocks 15 minutes before class">Unlocks 15m before</span>
-          );
-        })()}
+        {meetingLink && canJoinNow(s) ? (
+          // <button
+          //   onClick={() => launchMeeting(s)}
+          //   className="cursor-pointer flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-semibold hover:bg-emerald-100 transition-colors"
+          //   title="Join Meeting"
+          // >
+          //   <Video size={12} /> Join Meeting
+            <Button size="sm" onClick={() => launchMeeting(s)} className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent">
+                                          <Video size={16} /> Join Meeting
+                                        </Button>
+          // </button>
+        ) : (
+          <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium cursor-default" title="Joining unlocks 5 minutes before class">
+            Link available 5 minutes before start
+          </span>
+        )}
         <div className="flex items-center gap-2">
-          {s.googleMeetLink && (
-            <button
-              onClick={() => window.open(s.googleMeetLink, '_blank')}
-              className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors shadow-sm"
-              title="Launch Meeting"
-            >
-              <Video size={14} /> Launch
-            </button>
-          )}
-          <button onClick={() => openEditModal(s)} className="cursor-pointer p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors" title="Edit"><Edit2 size={16} /></button>
-          <button onClick={() => openCancelModal(s)} className="cursor-pointer p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors" title="Cancel Class"><XCircle size={16} /></button>
+          <button onClick={() => openCancelModal(s)} className="cursor-pointer p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors" title="Cancel Class"><XCircle size={16} /> </button>
           <button onClick={() => handleComplete(s._id)} disabled={completingId === s._id} className="cursor-pointer p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50" title="Mark Complete"><CheckCircle2 size={16} /></button>
         </div>
       </div>
@@ -842,7 +793,7 @@ function ClassroomTeacherCard({ cr, onClick }) {
 }
 
 /* ── Deep Dive Component ── */
-function TeacherClassroomDeepDive({ id, onBack, openEditModal, openCancelModal, handleComplete, completingId, generateZoomLink, generatingZoomId }) {
+function TeacherClassroomDeepDive({ id, onBack, openCancelModal, handleComplete, completingId, canJoinNow, launchMeeting }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -977,10 +928,6 @@ function TeacherClassroomDeepDive({ id, onBack, openEditModal, openCancelModal, 
             {[...sessions].sort((a, b) => new Date(a.startTime || a.scheduledDate || 0) - new Date(b.startTime || b.scheduledDate || 0) || (a.sessionNumber || 0) - (b.sessionNumber || 0)).map(s => {
               const isPast = new Date(s.endTime) < new Date();
               const canMarkAttendance = s.status === 'completed' || (isPast && s.status !== 'cancelled');
-              
-              // We need to pass the complete session object, but s here doesn't have populated _classroom. 
-              // We will augment it for the openEditModal/handleComplete functions.
-              const sForActions = { ...s, _classroom: classroom };
 
               return (
                 <Link to={`/classrooms/${id}/sessions/${s._id}`} className="hover:text-blue-600 transition-colors">
@@ -1068,38 +1015,22 @@ function TeacherClassroomDeepDive({ id, onBack, openEditModal, openCancelModal, 
                     {/* Actions */}
                     <div className="flex items-center gap-2 flex-wrap">
                       {s.status !== 'completed' && s.status !== 'cancelled' && (
-                        s.googleMeetLink ? (
+                        s.zoomJoinUrl && canJoinNow(s) ? (
                           <button
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(s.googleMeetLink, '_blank') }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); launchMeeting(s) }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors shadow-sm"
-                            title="Launch Meeting"
+                            title="Join Meeting"
                           >
-                            <Video size={14} /> Launch
+                            <Video size={14} /> Join
                           </button>
-                        ) : (() => {
-                          const minutesBefore = (new Date(s.startTime).getTime() - Date.now()) / (1000 * 60);
-                          const canGenerate = minutesBefore <= 15;
-                          return canGenerate ? (
-                            <button
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); generateZoomLink(s._id) }}
-                              disabled={generatingZoomId === s._id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-sm disabled:opacity-60"
-                              title="Generate Zoom Link"
-                            >
-                              {generatingZoomId === s._id ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} />}
-                              {generatingZoomId === s._id ? 'Generating...' : 'Generate Zoom'}
-                            </button>
-                          ) : (
-                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 text-xs font-medium cursor-default" title="Link generation unlocks 15 minutes before class">
-                              <Video size={14} /> Unlocks 15m before
+                        ) : (
+                          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 text-xs font-medium cursor-default" title="Joining unlocks 5 minutes before class">
+                            <Video size={14} /> Unlocks 5m before
                             </span>
-                          );
-                        })()
+                        )
                       )}
                       {s.status === 'scheduled' && (
                         <>
-                          {/* <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(sForActions) }} className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors" title="Edit"><Edit2 size={16} /></button>
-                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openCancelModal(sForActions) }} className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors" title="Cancel Class"><XCircle size={16} /></button> */}
                           <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleComplete(s._id) }} 
                             disabled={completingId === s._id} 
                             className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50" 
