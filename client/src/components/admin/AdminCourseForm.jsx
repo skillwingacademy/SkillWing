@@ -183,7 +183,7 @@ export default function AdminCourseForm({ course, onSaved, onCancel }) {
   }
 
   const inputClass =
-    'w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 px-3.5 rounded-xl text-sm'
+    'w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2 px-3.5 rounded-xl text-sm'
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">

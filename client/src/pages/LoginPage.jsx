@@ -49,19 +49,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 page-enter relative bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center px-4 page-enter relative bg-slate-50">
       {/* Background orbs */}
       <div className="orb orb-primary w-[400px] h-[400px] -top-20 -left-20 animate-float-slow" />
       <div className="orb orb-secondary w-[300px] h-[300px] -bottom-10 -right-16 animate-float" />
 
       <div className="relative z-10 w-full max-w-md">
         {/* Card */}
-        <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 animate-scale-in">
+        <div className="bg-white px-8 py-12 rounded-2xl shadow-xl border border-slate-200 animate-scale-in">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/25">
-              <Sparkles size={22} className="text-white" />
-            </div>
+            {/* <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/25"> */}
+              {/* <Sparkles size={22} className="text-white" />
+            </div> */}
             <h1 className="text-2xl font-bold font-[family-name:var(--font-family-heading)] text-slate-900">
               Welcome back
             </h1>
@@ -86,7 +86,7 @@ export default function LoginPage() {
                   value={emailOrPhone}
                   onChange={(e) => setEmailOrPhone(e.target.value)}
                   placeholder="Email or phone number"
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 rounded-xl pl-10"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2 rounded-xl pl-10"
                   autoComplete="username"
                 />
               </div>
@@ -104,7 +104,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 rounded-xl pl-10 pr-10"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2 rounded-xl pl-10 pr-10"
                   autoComplete="current-password"
                 />
                 <button
@@ -158,10 +158,8 @@ export default function LoginPage() {
             Don't have an account?{' '}
             <Link
               to="/register"
-              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
-            >
-              Create one
-            </Link>
+              className="text-primary-dark text-weight-600 hover:text-primary font-medium transition-colors"
+            >Create one</Link>
           </p>
         </div>
       </div>

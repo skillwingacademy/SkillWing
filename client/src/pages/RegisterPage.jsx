@@ -11,7 +11,7 @@ import toast from 'react-hot-toast'
 import api from '../api/axios'
 
 const INPUT_CLASS =
-  'w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 rounded-xl pl-10'
+  'w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2 rounded-xl pl-10'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -100,9 +100,9 @@ export default function RegisterPage() {
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 animate-scale-in">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/25">
-              <Sparkles size={22} className="text-white" />
-            </div>
+            {/* <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/25"> */}
+              {/* <Sparkles size={22} className="text-white" />
+            </div> */}
             <h1 className="text-2xl font-bold font-[family-name:var(--font-family-heading)] text-slate-900">
               Create your account
             </h1>

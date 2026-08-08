@@ -178,7 +178,7 @@ export default function ProfileEditPage() {
   if (loading) return <LoadingSpinner text="Loading profile..." />
 
   const inputClass =
-    'w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 px-4 rounded-xl text-sm'
+    'w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2 px-4 rounded-xl text-sm'
   const disabledInputClass =
     'w-full bg-slate-100 border border-slate-200 text-slate-500 py-2.5 px-4 rounded-xl text-sm cursor-not-allowed'
   const labelClass = 'text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 block'

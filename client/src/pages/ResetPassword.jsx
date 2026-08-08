@@ -65,9 +65,9 @@ export default function ResetPassword() {
             <>
               {/* Header */}
               <div className="text-center mb-8">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/25">
-                  <Sparkles size={22} className="text-white" />
-                </div>
+                {/* <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/25"> */}
+                  {/* <Sparkles size={22} className="text-white" />
+                </div> */}
                 <h1 className="text-2xl font-bold font-[family-name:var(--font-family-heading)] text-slate-900">
                   Reset your password
                 </h1>
@@ -99,7 +99,7 @@ export default function ResetPassword() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="At least 6 characters"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 rounded-xl pl-10 pr-10"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2 rounded-xl pl-10 pr-10"
                       autoComplete="new-password"
                     />
                     <button
@@ -125,7 +125,7 @@ export default function ResetPassword() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-enter your new password"
-                      className={`w-full bg-slate-50 border text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all py-2.5 rounded-xl pl-10 pr-10 ${
+                      className={`w-full bg-slate-50 border text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all py-2 rounded-xl pl-10 pr-10 ${
                         passwordsDontMatch
                           ? 'border-red-300 focus:ring-red-400 focus:border-red-400'
                           : passwordsMatch
