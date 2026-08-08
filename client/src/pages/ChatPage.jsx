@@ -78,6 +78,20 @@ export default function ChatPage() {
     return () => socket.off('new_message', handler)
   }, [socket, selectedConversation])
 
+  // ── Listen for read receipts (to clear the badge when messages are read) ──
+  useEffect(() => {
+    if (!socket) return
+    const me = user?.id || user?._id
+    const handler = ({ conversationId, readBy }) => {
+      if (!me || String(readBy) !== String(me)) return
+      setConversations((prev) =>
+        prev.map((c) => (c._id === conversationId ? { ...c, unreadCount: 0 } : c))
+      )
+    }
+    socket.on('messages_read', handler)
+    return () => socket.off('messages_read', handler)
+  }, [socket, user])
+
   // ── Open a conversation for a contact ────────────────────────────────────
   const openConversation = async (person) => {
     try {
@@ -91,7 +105,10 @@ export default function ChatPage() {
       setMobileView('chat')
 
       setConversations((prev) => {
-        if (prev.find((c) => c._id === convo._id)) return prev
+        const existing = prev.find((c) => c._id === convo._id)
+        if (existing) {
+          return prev.map((c) => (c._id === convo._id ? { ...c, unreadCount: 0 } : c))
+        }
         return [{ ...convo, unreadCount: 0 }, ...prev]
       })
     } catch (err) {

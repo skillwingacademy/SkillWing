@@ -133,8 +133,13 @@ export default function ConversationPanel({ conversation, onBack }) {
         if (prev.find((m) => m._id === res.data.data._id)) return prev
         return [...prev, res.data.data]
       })
-    } catch {
-      toast.error('Failed to send message')
+    } catch (err) {
+      const msg = err.response?.data?.message
+      if (msg?.toLowerCase().includes('contact details')) {
+        toast.error("You can't share personal contact details here")
+      } else {
+        toast.error(msg || 'Failed to send message')
+      }
     } finally {
       setSending(false)
     }
@@ -153,8 +158,13 @@ export default function ConversationPanel({ conversation, onBack }) {
         if (prev.find((m) => m._id === res.data.data._id)) return prev
         return [...prev, res.data.data]
       })
-    } catch {
-      toast.error('Failed to send image')
+    } catch (err) {
+      const msg = err.response?.data?.message
+      if (msg?.toLowerCase().includes('contact details')) {
+        toast.error("You can't share personal contact details here")
+      } else {
+        toast.error(msg || 'Failed to send image')
+      }
     } finally {
       setSending(false)
     }

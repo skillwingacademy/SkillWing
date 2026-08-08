@@ -9,6 +9,7 @@
  */
 
 const RazorpayProvider = require('./RazorpayProvider');
+const MockPaymentProvider = require('./MockPaymentProvider');
 
 let _provider = null;
 
@@ -16,15 +17,22 @@ const PaymentService = {
   getProvider() {
     if (_provider) return _provider;
 
-    _provider = new RazorpayProvider();
-    console.log('[PaymentService] Using RazorpayProvider');
+    const mode = (process.env.PAYMENT_MODE || 'mock').trim().toLowerCase();
+
+    if (mode === 'mock') {
+      _provider = new MockPaymentProvider();
+      console.log('[PaymentService] Using MockPaymentProvider');
+    } else {
+      _provider = new RazorpayProvider();
+      console.log(`[PaymentService] Using RazorpayProvider (mode=${mode})`);
+    }
 
     return _provider;
   },
 
   /** Returns true when running in mock mode */
   isMock() {
-    return false;
+    return (process.env.PAYMENT_MODE || 'mock').trim().toLowerCase() === 'mock';
   },
 };
 

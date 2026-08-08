@@ -424,7 +424,7 @@ export default function AdminDashboard() {
   }
 
   const handleScheduleDemo = async () => {
-    if (!demoInstructorId || !demoDate || !demoTime || !demoMeetLink) {
+    if (!demoInstructorId || !demoDate || !demoTime) {
       toast.error('Please fill all required fields')
       return
     }
@@ -433,7 +433,7 @@ export default function AdminDashboard() {
       await api.patch(`/demo/admin/${selectedDemo._id}/schedule`, {
         instructorId: demoInstructorId,
         scheduledAt: new Date(`${demoDate}T${demoTime}`).toISOString(),
-        meetLink: demoMeetLink,
+        meetLink: demoMeetLink || '',
         durationMinutes: demoDuration,
         adminNotes: demoNotes,
       })
@@ -1673,10 +1673,11 @@ export default function AdminDashboard() {
               className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="text-sm text-white/70 block mb-1.5">Meet Link <span className="text-red-400">*</span></label>
+            <label className="text-sm text-white/70 block mb-1.5">Meet Link <span className="text-white/40">(optional)</span></label>
             <input type="url" value={demoMeetLink} onChange={e => setDemoMeetLink(e.target.value)}
               placeholder="https://meet.google.com/..."
               className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p className="text-xs text-white/40 mt-1">Leave empty to auto-generate a Zoom meeting link.</p>
           </div>
           <div>
             <label className="text-sm text-white/70 block mb-1.5">Notes (optional)</label>

@@ -1,5 +1,4 @@
 const nodemailer = require("nodemailer");
-const dns = require("dns").promises;
 
 /**
  * Send transactional email via SMTP
@@ -15,23 +14,11 @@ const dns = require("dns").promises;
 const sendEmail = (options) => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Resolve IPv4 address
-      const { address } = await dns.lookup(process.env.SMTP_HOST, {
-        family: 4,
-      });
-
-      console.log("========== SMTP DEBUG ==========");
-      console.log({
-        smtpHost: process.env.SMTP_HOST,
-        resolvedIPv4: address,
-        port: process.env.SMTP_PORT,
-        user: process.env.SMTP_USER,
-        secure: Number(process.env.SMTP_PORT) === 465,
-      });
-      console.log("===============================");
-
+      // Connect using the SMTP hostname directly. Forcing an IPv4 A-record
+      // lookup breaks on IPv6/NAT64 networks (unroutable raw IPv4 address);
+      // the resolver picks the right route when we pass the hostname through.
       const transporter = nodemailer.createTransport({
-        host: address,
+        host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT) || 587,
         secure: Number(process.env.SMTP_PORT) === 465,
 
@@ -40,16 +27,9 @@ const sendEmail = (options) => {
           pass: process.env.SMTP_PASS,
         },
 
-        tls: {
-          servername: process.env.SMTP_HOST,
-        },
-
         connectionTimeout: 30000,
         greetingTimeout: 30000,
         socketTimeout: 30000,
-
-        logger: true,
-        debug: true,
       });
 
       await transporter.verify();

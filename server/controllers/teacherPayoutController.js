@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Session = require('../models/Session');
+const User = require('../models/User');
 
 // @desc    Get payout data for the logged-in teacher (with financials & deductions)
 // @route   GET /api/teacher/payouts?month=7&year=2026

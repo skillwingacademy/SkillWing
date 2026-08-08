@@ -8,6 +8,23 @@ const multer = require('multer');
 
 const PAGE_SIZE = 30;
 
+// ── Contact-detail filter ────────────────────────────────────────────────
+// Blocks messages that try to smuggle personal contact details out of the
+// platform. One guard here protects both text messages and image captions.
+// ponytail: regex-based — cat-and-mouse (e.g. "9 eight 7...") can evade it.
+// Upgrade path: an admin-review queue for flagged messages if evasion becomes
+// a real problem.
+const EMAIL_RE = /[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i;
+// Phone: 10-digit number (Indian style), with optional +country-code prefix.
+// Separators (space, -, ., ()) allowed between digit groups.
+const PHONE_RE = /(\+?\d{1,3}[\s.\-]?)?\(?\d{5}\)?[\s.\-]?\d{5}/;
+
+function containsContactDetails(text) {
+  if (!text) return false;
+  return EMAIL_RE.test(text) || PHONE_RE.test(text);
+}
+
+
 // Multer in-memory storage for chat image uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -278,6 +295,13 @@ exports.sendMessage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Message content is required' });
     }
 
+    if (containsContactDetails(content)) {
+      return res.status(400).json({
+        success: false,
+        message: "You can't share contact details (email/phone) in chat. Keep all communication on SkillWing.",
+      });
+    }
+
     const convo = await Conversation.findById(conversationId);
     if (!convo || !convo.participants.map(String).includes(me._id.toString())) {
       return res.status(403).json({ success: false, message: 'Access denied' });
@@ -305,10 +329,9 @@ exports.sendMessage = async (req, res) => {
 
     const populated = await message.populate('sender', 'name email role profile.avatarUrl avatar');
 
-    // Emit via socket (if io is attached to app)
     const io = req.app.get('io');
     if (io) {
-      io.to(`conversation:${conversationId}`).emit('new_message', {
+      io.to(`user:${recipientId}`).emit('new_message', {
         conversationId,
         message: populated,
       });
@@ -332,6 +355,13 @@ exports.sendImageMessage = async (req, res) => {
 
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Image file is required' });
+    }
+
+    if (containsContactDetails(req.body.caption || '')) {
+      return res.status(400).json({
+        success: false,
+        message: "You can't share contact details (email/phone) in chat. Keep all communication on SkillWing.",
+      });
     }
 
     const convo = await Conversation.findById(conversationId);
@@ -368,7 +398,7 @@ exports.sendImageMessage = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      io.to(`conversation:${conversationId}`).emit('new_message', {
+      io.to(`user:${recipientId}`).emit('new_message', {
         conversationId,
         message: populated,
       });

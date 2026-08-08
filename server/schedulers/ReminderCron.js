@@ -2,7 +2,6 @@ const cron = require('node-cron');
 const Session = require('../models/Session');
 const Classroom = require('../models/Classroom');
 const { sendPushToUser } = require('../controllers/notificationController');
-const { db } = require('../services/firebaseService');
 const sendEmail = require('../utils/sendEmail');
 
 /**
@@ -25,10 +24,11 @@ let isRunning = false;
  * @param {string} sessionTitle
  * @param {string} startTimeStr  - formatted time string
  * @param {string} dateStr       - formatted date string
+ * @param {string} zoomJoinUrl   - Zoom join link for the session
  * @param {'student'|'teacher'} role
  * @returns {{ html: string, text: string }}
  */
-function buildReminderEmail(recipientName, sessionTitle, startTimeStr, dateStr, role) {
+function buildReminderEmail(recipientName, sessionTitle, startTimeStr, dateStr, zoomJoinUrl, role) {
   const year = new Date().getFullYear();
   const roleNote = role === 'teacher'
     ? 'Your students are looking forward to this session. Please ensure your setup is ready before the class begins.'
@@ -37,6 +37,26 @@ function buildReminderEmail(recipientName, sessionTitle, startTimeStr, dateStr, 
   const dashboardUrl = (process.env.CLIENT_URL || '').replace(/\/+$/, '') + (
     role === 'teacher' ? '/teacher/dashboard' : '/dashboard'
   );
+
+  const zoomBlock = zoomJoinUrl ? `
+            <p style="margin:18px 0 0;font-size:14px;color:#475569;line-height:1.6;">Your Zoom meeting will be <strong style="color:#1e293b;">active at the scheduled time</strong> (${startTimeStr}). You can join using the button below.</p>
+            <!-- Zoom Join Button -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 0;">
+              <tr>
+                <td align="center">
+                  <a href="${zoomJoinUrl}" target="_blank"
+                    style="display:inline-block;background:#0b5cf0;color:#fff;text-decoration:none;font-size:16px;font-weight:800;padding:15px 40px;border-radius:10px;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(11,92,240,0.35);">
+                    🎥 Join Zoom Meeting
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding-top:12px;">
+                  <a href="${zoomJoinUrl}" target="_blank" style="font-size:12px;color:#64748b;word-break:break-all;">${zoomJoinUrl}</a>
+                </td>
+              </tr>
+            </table>
+` : '';
 
   const html = `
 <!DOCTYPE html>
@@ -91,6 +111,7 @@ function buildReminderEmail(recipientName, sessionTitle, startTimeStr, dateStr, 
             </table>
 
             <p style="margin:0;font-size:15px;color:#475569;line-height:1.7;">${roleNote}</p>
+${zoomBlock}
 
             <!-- CTA Button -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0 0;">
@@ -131,7 +152,7 @@ function buildReminderEmail(recipientName, sessionTitle, startTimeStr, dateStr, 
 </body>
 </html>`;
 
-  const text = `Hi ${recipientName},\n\nThis is a reminder that your class "${sessionTitle}" is starting in about 2 hours.\n\nDate: ${dateStr}\nTime: ${startTimeStr}\n\n${roleNote}\n\nVisit your dashboard: ${dashboardUrl}\n\nRegards,\nThe SkillWing Team`;
+  const text = `Hi ${recipientName},\n\nThis is a reminder that your class "${sessionTitle}" is starting in about 2 hours.\n\nDate: ${dateStr}\nTime: ${startTimeStr}${zoomJoinUrl ? `\n\nJoin Zoom: ${zoomJoinUrl}\nYour Zoom meeting will be active at the scheduled time.` : ''}\n\n${roleNote}\n\nVisit your dashboard: ${dashboardUrl}\n\nRegards,\nThe SkillWing Team`;
 
   return { html, text };
 }
@@ -156,7 +177,7 @@ async function runReminderCycle() {
       reminderSent: { $ne: true },
       startTime: { $gte: windowStart, $lte: windowEnd },
     })
-      .select('_id title sessionNumber startTime classroom')
+      .select('_id title sessionNumber startTime classroom zoomJoinUrl')
       .limit(50);
 
     if (sessions.length === 0) {
@@ -209,7 +230,7 @@ async function runReminderCycle() {
           if (teacher.email) {
             const { html, text } = buildReminderEmail(
               teacher.name || 'Teacher',
-              sessionTitle, startTimeStr, dateStr, 'teacher'
+              sessionTitle, startTimeStr, dateStr, session.zoomJoinUrl, 'teacher'
             );
             sendEmail({
               email: teacher.email,
@@ -232,7 +253,7 @@ async function runReminderCycle() {
           if (student.email) {
             const { html, text } = buildReminderEmail(
               student.name || 'Student',
-              sessionTitle, startTimeStr, dateStr, 'student'
+              sessionTitle, startTimeStr, dateStr, session.zoomJoinUrl, 'student'
             );
             sendEmail({
               email: student.email,
@@ -245,26 +266,26 @@ async function runReminderCycle() {
           }
         }
 
-        // ── Legacy: Firebase Trigger Email (kept as fallback if db is configured) ──
-        const userEmails = [];
-        if (classroom.teacher?.email) userEmails.push(classroom.teacher.email);
-        students.forEach(s => { if (s.email) userEmails.push(s.email); });
+        // ── Legacy: Firebase Trigger Email (disabled — emails sent via SMTP above) ──
+        // const userEmails = [];
+        // if (classroom.teacher?.email) userEmails.push(classroom.teacher.email);
+        // students.forEach(s => { if (s.email) userEmails.push(s.email); });
 
-        if (db && userEmails.length > 0) {
-          for (const email of userEmails) {
-            try {
-              await db.collection('mail').add({
-                to: email,
-                message: {
-                  subject: `⏰ Reminder: "${sessionTitle}" starts in 2 hours`,
-                  html: `<p>Your class <strong>${sessionTitle}</strong> starts at <strong>${startTimeStr}</strong> on ${dateStr}. Please log in to your dashboard.</p>`,
-                },
-              });
-            } catch (mailErr) {
-              console.error(`[ReminderCron] Firebase email error for ${email}:`, mailErr.message);
-            }
-          }
-        }
+        // if (db && userEmails.length > 0) {
+        //   for (const email of userEmails) {
+        //     try {
+        //       await db.collection('mail').add({
+        //         to: email,
+        //         message: {
+        //           subject: `⏰ Reminder: "${sessionTitle}" starts in 2 hours`,
+        //           html: `<p>Your class <strong>${sessionTitle}</strong> starts at <strong>${startTimeStr}</strong> on ${dateStr}. Please log in to your dashboard.</p>`,
+        //         },
+        //       });
+        //     } catch (mailErr) {
+        //       console.error(`[ReminderCron] Firebase email error for ${email}:`, mailErr.message);
+        //     }
+        //   }
+        // }
 
         // Mark session so we don't send again
         await Session.updateOne({ _id: session._id }, { reminderSent: true });

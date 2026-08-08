@@ -3,6 +3,7 @@ const Classroom = require('../models/Classroom');
 const Course = require('../models/Course');
 const User = require('../models/User');
 const ChatContact = require('../models/ChatContact');
+const { createMeeting } = require('../services/ZoomService');
 const { sendPushToUser } = require('./notificationController');
 const PaymentService = require('../services/payment/PaymentService');
 
@@ -231,10 +232,10 @@ exports.adminScheduleDemo = async (req, res) => {
   try {
     const { instructorId, scheduledAt, meetLink, durationMinutes, adminNotes } = req.body;
 
-    if (!instructorId || !scheduledAt || !meetLink) {
+    if (!instructorId || !scheduledAt) {
       return res.status(400).json({
         success: false,
-        message: 'instructorId, scheduledAt, and meetLink are required',
+        message: 'instructorId and scheduledAt are required',
       });
     }
 
@@ -258,9 +259,29 @@ exports.adminScheduleDemo = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Instructor not found' });
     }
 
+    // ── Auto-generate a Zoom meeting if no manual link was provided ───────
+    // Mirrors the session scheduling flow (attachZoomLink in adminScheduleController).
+    let finalMeetLink = (meetLink || '').trim();
+    if (!finalMeetLink) {
+      try {
+        const zoomResult = await createMeeting(
+          demo.course?.title ? `Demo Class — ${demo.course.title}` : 'Demo Class',
+          scheduledAt,
+          durationMinutes || 45
+        );
+        finalMeetLink = zoomResult.joinUrl;
+      } catch (zoomErr) {
+        console.error('[Demo] Zoom link generation failed:', zoomErr.message);
+        return res.status(502).json({
+          success: false,
+          message: `Failed to generate meeting link: ${zoomErr.message || 'Zoom API error'}`,
+        });
+      }
+    }
+
     demo.instructor = instructorId;
     demo.scheduledAt = new Date(scheduledAt);
-    demo.meetLink = meetLink;
+    demo.meetLink = finalMeetLink;
     demo.durationMinutes = durationMinutes || 45;
     demo.adminNotes = adminNotes || '';
     demo.status = 'scheduled';

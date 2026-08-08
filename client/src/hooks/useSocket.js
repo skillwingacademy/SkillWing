@@ -2,8 +2,12 @@ import { useEffect, useRef, useCallback } from 'react'
 import { io } from 'socket.io-client'
 import { useAuth } from './useAuth'
 
-const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api')
-  .replace('/api', '') // socket connects to root, not /api
+// In dev the Vite dev server proxies /socket.io → the backend, so connect to
+// the same origin. In production use VITE_API_URL (Render), falling back to
+// the same origin so relative paths keep working.
+const SOCKET_URL = import.meta.env.DEV
+  ? window.location.origin
+  : (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/api\/?$/, '')
 
 let socketInstance = null
 
